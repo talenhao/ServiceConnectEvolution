@@ -1,0 +1,13 @@
+[DB]
+# Change to your real envision
+host: 192.168.1.100
+port: 3306
+password: sce
+username: sce
+db_name: sce_db
+
+[TABLE]
+listen_table: service_listens_table
+connection_table: service_connections_table
+
+[SERVICE]
