@@ -260,14 +260,6 @@ def start_end_point(info):
     return _warper
 
 
-def start_line(info):
-    pLogger.debug("\n" + ">" * 50 + "process project start : %s", info)
-
-
-def end_line(info):
-    pLogger.debug("\n" + "<" * 50 + "process project finish : %s ", info)
-
-
 # 老式多线程方法，放弃。
 # def _collect_worker():
 #     thread_list = []
