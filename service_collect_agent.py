@@ -10,13 +10,7 @@ Copyright (C) 2017-2027 Talen Hao. All Rights Reserved.
 import uuid
 import sys
 import getopt
-import re
 import datetime
-import multiprocessing
-import multiprocessing.dummy
-# import threading
-# from Queue import Queue
-# from itertools import repeat
 import psutil
 
 # user module
@@ -34,9 +28,10 @@ pLogger = log4p.GetLogger(SCRIPT_NAME, logging.DEBUG).get_l()
 # ******************************************************
 __author__ = "Talen Hao(天飞)<talenhao@gmail.com>"
 __create_date__ = "2017.09.05"
-__last_date__ = "2017.09.06"
+__last_date__ = "2017.09.07"
 __version__ = __last_date__
 # ******************************************************
+
 all_args = sys.argv[1:]
 usage = '''
 用法：
@@ -46,6 +41,7 @@ usage = '''
     --help, -h              帮助。
     --version, -V           输出版本号。
 ''' % sys.argv[0]
+
 db_con = db_connect.DbInitConnect()
 config_parser = db_con.python_config_parser
 service_listens_table = config_parser.get("TABLE", "listen_table")
@@ -163,7 +159,6 @@ def ps_collect():
                         create_time = datetime.datetime.utcfromtimestamp(create_time) + datetime.timedelta(hours=8)
                         create_time = str(create_time)
                         pLogger.debug("{!r} create_time is {!r}".format(pid, create_time))
-                        username = process.username()
                         # num_ctx_switches = process.num_ctx_switches()
                         username = process.username()
                         # memory_full_info = process.memory_full_info()
@@ -179,7 +174,8 @@ def ps_collect():
                             if connection.status != psutil.CONN_LISTEN and\
                                             connection.status != psutil.CONN_NONE and\
                                             connection.laddr[1] not in process_listen_port:
-                                pLogger.debug("connection {!r} has connection.raddr is {!r}".format(connection, connection.raddr))
+                                pLogger.debug("connection {!r} has connection.raddr is {!r}".format(connection,
+                                                                                                    connection.raddr))
                                 process_connection_ip_port.add(connection.raddr)
 
                         # take out from set.
@@ -191,7 +187,8 @@ def ps_collect():
                             pLogger.warn("Process {} with pid {} has no listen ports!".format(process, pid))
                         # 从laddr中排除自身监听的端口
                         if process_connection_ip_port:
-                            pLogger.debug("{!r} process_connection_ip_port is {!r}".format(pid, process_connection_ip_port))
+                            pLogger.debug("{!r} process_connection_ip_port is {!r}".format(pid,
+                                                                                           process_connection_ip_port))
                             for connection_raddr in process_connection_ip_port:
                                 c_ip, c_port = connection_raddr
                                 import2db(service_connections_table, c_ip, c_port, name, pid, exe, cwd,
@@ -207,27 +204,34 @@ def ps_collect():
 
 
 @db_commit
-def import2db(table, l_ip, l_port, p_name, p_pid, p_exe, p_cwd, p_cmdline, p_status, p_create_time, p_username,
+def import2db(table, ip, port, p_name, p_pid, p_exe, p_cwd, p_cmdline, p_status, p_create_time, p_username,
               server_uuid):
-    if table == service_listens_table:
-        ip = "l_ip"
-        port = "l_port"
-    elif table == service_connections_table:
-        ip = "c_ip"
-        port = "c_port"
-    sql_cmd = 'INSERT ignore INTO {} ({},{},{},{},{},{},{},{},{},{},{}) ' \
-              'VALUES ("{!r}","{!r}",{!r},{!r},{!r},{!r},"{!r}",{!r},{!r},{!r},{!r})'.format(
-                    table,
-                    ip, port,
-                    "p_name", "p_pid", "p_exe", "p_cwd", "p_cmdline", "p_status", "p_create_time", "p_username", "server_uuid",
-                    l_ip, l_port,
-                    p_name, p_pid, p_exe, p_cwd, p_cmdline, p_status, p_create_time, p_username, server_uuid)
-    pLogger.debug("[%s] import database operation command: %r", p_exe, sql_cmd)
-    return sql_cmd
-
-# ############################################ test
-# In [57]: 'proxy-server' in str(a.cmdline())
-# Out[57]: True
+    ip_column = ""
+    port_column = ""
+    try:
+        if table == service_listens_table:
+            ip_column = "l_ip"
+            port_column = "l_port"
+        elif table == service_connections_table:
+            ip_column = "c_ip"
+            port_column = "c_port"
+    except ValueError:
+        pLogger.exception("Please check the table name argument {}.".format(table))
+        exit()
+    else:
+        if ip_column and port_column:
+            sql_cmd = 'INSERT ignore INTO {} ({},{},{},{},{},{},{},{},{},{},{}) ' \
+                      'VALUES ("{!r}","{!r}",{!r},{!r},{!r},{!r},"{!r}",{!r},{!r},{!r},{!r})'.format(
+                            table,
+                            ip_column, port_column,
+                            "p_name", "p_pid", "p_exe", "p_cwd", "p_cmdline", "p_status", "p_create_time", "p_username",
+                            "server_uuid",
+    
+                            ip, port,
+                            p_name, p_pid, p_exe, p_cwd, p_cmdline, p_status, p_create_time, p_username,
+                            server_uuid)
+            pLogger.debug("[%s] import database operation command: %r", p_exe, sql_cmd)
+            return sql_cmd
 
 
 @db_commit
@@ -255,7 +259,6 @@ def end_line(info):
 
 
 # 老式多线程方法，放弃。
-#
 # def _collect_worker():
 #     thread_list = []
 #     app_listen_instance = AppListen()
