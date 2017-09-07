@@ -250,6 +250,16 @@ def reset_local_db_info(table_name, column_name):
     return sql_cmd
 
 
+def start_end_point(info):
+    def _warper(fun):
+        def warper(*args, **kwargs):
+            pLogger.debug("\n" + ">" * 50 + "process project start : %s", info)
+            fun(*args, **kwargs)
+            pLogger.debug("\n" + "<" * 50 + "process project finish : %s ", info)
+        return warper
+    return _warper
+
+
 def start_line(info):
     pLogger.debug("\n" + ">" * 50 + "process project start : %s", info)
 
@@ -303,9 +313,9 @@ def end_line(info):
 
 
 @spend_time
+@start_end_point(SCRIPT_NAME)
 @script_head
 def main():
-    start_line(SCRIPT_NAME)
     try:
         # Clean old data
         for table_name in [service_listens_table, service_connections_table]:
@@ -315,7 +325,6 @@ def main():
     except PermissionError:
         pLogger.exception("使用root用户执行.")
         exit()
-    end_line(SCRIPT_NAME)
     
 if __name__ == "__main__":
     get_options()
