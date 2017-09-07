@@ -3,16 +3,39 @@ python_require_common_package:
     - pkgs:
       - gcc
 
-python_for_collect:
+python_setup:
   file.managed:
-    - name: /var/local/python2.7.13.tar.gz
-    - source: salt://collect2yed/files/python2.7.13.tar.gz
+    - name: /usr/local/src/Python-3.6.1.tar.xz
+    - source: salt://SCE/files/Python-3.6.1.tar.xz
     - mode: 644
   cmd.run:
-    - name: tar zxf python2.7.13.tar.gz
-    - cwd: /var/local/
+    - name: tar xf Python-3.6.1.tar.xz && cd Python-3.6.1 && ./configure --prefix=/usr/local/_python3.6.1 && make && make install
+    - cwd: /usr/local/src/
     - require: 
-      - file: python_for_collect
       - pkg: python_require_common_package
-    - onchanges:
-      - file: python_for_collect
+#    - onchanges:
+#      - file: python_setup
+    - creates:
+      - /usr/local/_python3.6.1
+#    - unless: test -d /usr/local/_python3.6.1
+
+ServiceConnectionEvolution:
+  file.recurse:
+    - name: /usr/local/_ServiceConnectionEvolution
+    - source: salt://SCE/files/ServiceConnectionEvolution
+    - require:
+      - file: sce_requirements.txt
+
+sce_requirements.txt:
+  file.managed:
+    - name: /usr/local/_ServiceConnectionEvolution/sce_requirements.txt
+    - source: salt://SCE/files/ServiceConnectionEvolution/sce_requirements.txt
+      
+python_requirements:
+  cmd.run:
+    - name: /usr/local/_python3.6.1/bin/pip3 install -r sce_requirements.txt
+    - cwd: /usr/local/_ServiceConnectionEvolution
+    - require:
+      - cmd: python_setup
+    - watch:
+      - file: sce_requirements.txt
