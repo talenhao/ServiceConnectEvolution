@@ -1,6 +1,6 @@
--- MySQL dump 10.16  Distrib 10.1.25-MariaDB, for Linux (x86_64)
+-- MySQL dump 10.13  Distrib 5.1.73, for redhat-linux-gnu (x86_64)
 --
--- Host: 192.168.1.xxx    Database: SCEdb
+-- Host: 192.168.1.138    Database: yed_collect
 -- ------------------------------------------------------
 -- Server version	5.6.27-log
 
@@ -30,16 +30,16 @@ CREATE TABLE `service_connections_table` (
   `p_pid` varchar(5) NOT NULL COMMENT 'process name',
   `p_exe` varchar(255) NOT NULL COMMENT 'process exe',
   `p_cwd` varchar(255) NOT NULL COMMENT 'process cwd',
-  `p_cmdline` text NOT NULL COMMENT 'process cmdline',
   `p_status` varchar(10) NOT NULL COMMENT 'process status',
   `p_create_time` datetime NOT NULL COMMENT 'process create time',
   `p_username` varchar(20) NOT NULL COMMENT 'process username',
   `server_uuid` char(36) NOT NULL COMMENT 'server machine id',
   `CreateTime` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'record create time',
+  `p_cmdline` text NOT NULL COMMENT 'process cmdline',
   PRIMARY KEY (`id`),
   UNIQUE KEY `ip_port` (`c_ip`,`c_port`),
   KEY `server_uuid_index` (`server_uuid`)
-) ENGINE=InnoDB AUTO_INCREMENT=117 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=143 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -57,16 +57,16 @@ CREATE TABLE `service_listens_table` (
   `p_pid` varchar(5) NOT NULL COMMENT 'process name',
   `p_exe` varchar(255) NOT NULL COMMENT 'process exe',
   `p_cwd` varchar(255) NOT NULL COMMENT 'process cwd',
-  `p_cmdline` text NOT NULL COMMENT 'process cmdline',
   `p_status` varchar(10) NOT NULL COMMENT 'process status',
   `p_create_time` datetime NOT NULL COMMENT 'process create time',
   `p_username` varchar(20) NOT NULL COMMENT 'process username',
   `server_uuid` char(36) NOT NULL COMMENT 'server machine id',
   `CreateTime` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'record create time',
+  `p_cmdline` text NOT NULL COMMENT 'process cmdline',
   PRIMARY KEY (`id`),
   UNIQUE KEY `ip_port` (`l_ip`,`l_port`),
   KEY `server_uuid_index` (`server_uuid`)
-) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=61 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -78,4 +78,4 @@ CREATE TABLE `service_listens_table` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-09-07 11:15:10
+-- Dump completed on 2017-09-08  0:58:31
