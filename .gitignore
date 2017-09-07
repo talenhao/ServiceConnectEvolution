@@ -1,5 +1,6 @@
 # for tianfei
 config.ini
+*.log
 # pycharm
 .idea/
 # Byte-compiled / optimized / DLL files
