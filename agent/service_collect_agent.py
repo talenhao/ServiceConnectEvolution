@@ -13,12 +13,12 @@ import datetime
 import psutil
 
 # user module
-import db_connect
+from .. import db_connect
 
 # for log >>
 import logging
 import os
-import log4p
+from .. import log4p
 
 SCRIPT_NAME = os.path.basename(__file__)
 pLogger = log4p.GetLogger(SCRIPT_NAME, logging.DEBUG).get_l()
