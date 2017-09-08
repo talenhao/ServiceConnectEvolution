@@ -64,7 +64,7 @@ def script_head(func):
         if sys.version_info < (3, 4):
             pLogger.warning('友情提示：当前系统版本低于3.4，请升级python版本。')
             raise RuntimeError('At least Python 3.4 is required')
-        pLogger.info("当前脚本版本信息：%s", __version__)
+        pLogger.info("Script version: {!r}".format(__version__))
         return func(*args, **kwargs)
     return warper
 
@@ -77,6 +77,7 @@ def db_commit(func):
         pLogger.debug("SQL_CMD is {!r}".format(sql_cmd))
         db_con.cursor.execute(sql_cmd)
         pLogger.info("import database operation command result: [ %s ]", db_con.cursor.rowcount)
+        db_con.connect.commit()
     return warper
 
 
@@ -84,7 +85,6 @@ def db_commit(func):
 def db_close(func):
     def warper(*args, **kwargs):
         func(*args, **kwargs)
-        db_con.connect.commit()
         db_con.finally_close_all()
     return warper
 
@@ -101,7 +101,7 @@ def spend_time(func):
 
 def get_options():
     if all_args:
-        pLogger.debug("命令行参数是 %s", str(all_args))
+        pLogger.debug("Command arguments: {!r}".format(str(all_args)))
     # else:
         # pLogger.error(usage)
         # sys.exit()
@@ -132,7 +132,6 @@ def get_server_ip():
     return ip_set
 
 
-@db_close
 def ps_collect():
     server_ip = get_server_ip()
     server_uuid = get_server_uuid()
@@ -316,16 +315,17 @@ def con_and_ps():
         # Collect new data
         ps_collect()
     except PermissionError:
-        pLogger.exception("使用root用户执行.")
+        pLogger.exception("Use root user.")
         exit()
 
 
+@db_close
 def main():
     get_options()
     try:
         con_and_ps()
     except PermissionError:
-        pLogger.exception("用户权限不足,使用root用户执行.")
+        pLogger.exception("Use root user to execution.")
         exit()
     
 if __name__ == "__main__":
