@@ -74,9 +74,9 @@ def db_commit(func):
     def warper(*args, **kwargs):
         # config_parser = db_connect.SCEConfigParser().config_parser()
         sql_cmd = func(*args, **kwargs)
-        pLogger.debug("SQL_CMD is {!r}".format(sql_cmd))
+        pLogger.debug("SQL_CMD is =====> {}  __________".format(sql_cmd))
         db_con.cursor.execute(sql_cmd)
-        pLogger.info("database operation command {} result: {}".format(sql_cmd, db_con.cursor.rowcount))
+        pLogger.info("=====> DB operation command result: {}".format(db_con.cursor.rowcount))
         db_con.connect.commit()
     return warper
 
@@ -230,7 +230,7 @@ def import2db(table, ip, port, p_name, p_pid, p_exe, p_cwd, p_cmdline, p_status,
                             ip, port,
                             p_name, p_pid, p_exe, p_cwd, p_cmdline, p_status, p_create_time, p_username,
                             server_uuid)
-            pLogger.debug("[%s] import database operation command: %r", p_exe, sql_cmd)
+            pLogger.debug("{} insert database operation command: {}".format(p_exe, sql_cmd))
             return sql_cmd
 
 
@@ -246,7 +246,7 @@ def reset_local_db_info(table_name, column_name):
     sql_like_pattern = sql_like_string.format(server_uuid)
     pLogger.debug("sql_like_pattern: {}".format(sql_like_pattern))
     sql_cmd = "DELETE FROM %s WHERE %s" % (table_name, sql_like_pattern)
-    pLogger.info("[%s] Truncate database table operation: [ %s ]", table_name, sql_cmd)
+    pLogger.info("{} truncate database table operation: {}".format(table_name, sql_cmd))
     return sql_cmd
 
 

@@ -37,7 +37,7 @@ CREATE TABLE `service_connections_table` (
   `CreateTime` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'record create time',
   `p_cmdline` text NOT NULL COMMENT 'process cmdline',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `ip_port` (`c_ip`,`c_port`),
+  UNIQUE KEY `pid_ip_port` (`p_pid`,`c_ip`,`c_port`),
   KEY `server_uuid_index` (`server_uuid`)
 ) ENGINE=InnoDB AUTO_INCREMENT=143 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
