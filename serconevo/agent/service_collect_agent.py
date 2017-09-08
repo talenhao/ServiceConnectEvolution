@@ -13,16 +13,17 @@ import datetime
 import psutil
 
 # user module
-from .. import db_connect
+from serconevo.model import db_connect
 
 # for log >>
 import logging
 import os
-from .. import log4p
+from ..log4p import log4p
 
 SCRIPT_NAME = os.path.basename(__file__)
 pLogger = log4p.GetLogger(SCRIPT_NAME, logging.DEBUG).get_l()
 # log end <<
+
 
 # ******************************************************
 __author__ = "Talen Hao(天飞)<talenhao@gmail.com>"
@@ -40,6 +41,7 @@ usage = '''
     --help, -h              帮助。
     --version, -V           输出版本号。
 ''' % sys.argv[0]
+
 
 db_con = db_connect.DbInitConnect()
 config_parser = db_con.python_config_parser
@@ -306,7 +308,7 @@ def start_end_point(info):
 @spend_time
 @start_end_point(SCRIPT_NAME)
 @script_head
-def main():
+def con_and_ps():
     try:
         # Clean old data
         for table_name in [service_listens_table, service_connections_table]:
@@ -316,11 +318,15 @@ def main():
     except PermissionError:
         pLogger.exception("使用root用户执行.")
         exit()
-    
-if __name__ == "__main__":
+
+
+def main():
     get_options()
     try:
-        main()
+        con_and_ps()
     except PermissionError:
         pLogger.exception("用户权限不足,使用root用户执行.")
         exit()
+    
+if __name__ == "__main__":
+    main()

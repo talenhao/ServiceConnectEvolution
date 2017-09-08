@@ -9,10 +9,12 @@ import configparser
 # for log >>
 import logging
 import os
-from ..log4p import log4p
+from serconevo.log4p import log4p
 
 SCRIPT_NAME = os.path.basename(__file__)
 pLogger = log4p.GetLogger(SCRIPT_NAME, logging.DEBUG).get_l()
+config_file = os.path.dirname(__file__) + '/config.ini'
+pLogger.debug("config file is {}".format(config_file))
 # log end <<
 
 
@@ -22,9 +24,9 @@ def exception(e):
 
 
 class SCEConfigParser:
-    def __init__(self, config_file='config.ini'):
+    def __init__(self, config_file=config_file):
         self.config_file = config_file
-        pLogger.debug("使用配置文件 {} ".format(self.config_file))
+        pLogger.debug("Use config file: {} ".format(self.config_file))
 
     def config_parser(self):
         # with open(self.config_file,mode='r') as self.fp:
