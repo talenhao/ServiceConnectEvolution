@@ -76,7 +76,7 @@ def db_commit(func):
         sql_cmd = func(*args, **kwargs)
         pLogger.debug("SQL_CMD is {!r}".format(sql_cmd))
         db_con.cursor.execute(sql_cmd)
-        pLogger.info("import database operation command result: [ %s ]", db_con.cursor.rowcount)
+        pLogger.info("database operation command {} result: {}".format(sql_cmd, db_con.cursor.rowcount))
         db_con.connect.commit()
     return warper
 
