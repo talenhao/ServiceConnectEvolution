@@ -34,10 +34,11 @@ CREATE TABLE `service_connections_table` (
   `p_create_time` datetime NOT NULL COMMENT 'process create time',
   `p_username` varchar(20) NOT NULL COMMENT 'process username',
   `server_uuid` char(36) NOT NULL COMMENT 'server machine id',
+  `local_ip` varchar(255) NOT NULL COMMENT 'connection ip',
   `CreateTime` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'record create time',
   `p_cmdline` text NOT NULL COMMENT 'process cmdline',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `pid_ip_port` (`p_pid`,`c_ip`,`c_port`),
+  UNIQUE KEY `local_pid_cip_cport` (`local_ip`,`p_pid`,`c_ip`,`c_port`),
   KEY `server_uuid_index` (`server_uuid`)
 ) ENGINE=InnoDB AUTO_INCREMENT=143 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -51,7 +52,7 @@ DROP TABLE IF EXISTS `service_listens_table`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `service_listens_table` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'primary key',
-  `l_ip` varchar(255) NOT NULL COMMENT 'listening ip',
+  `l_ip` varchar(255) NOT NULL COMMENT 'listening ip == local_ip',
   `l_port` varchar(255) NOT NULL COMMENT 'listening port',
   `p_name` varchar(40) NOT NULL COMMENT 'process name',
   `p_pid` varchar(5) NOT NULL COMMENT 'process name',
