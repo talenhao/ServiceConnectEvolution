@@ -2,6 +2,7 @@
 # -*- coding:utf-8 -*-
 
 import pymysql
+import pymysql.err
 import datetime
 import sys
 import configparser
@@ -14,6 +15,7 @@ from serconevo.log4p import log4p
 SCRIPT_NAME = os.path.basename(__file__)
 pLogger = log4p.GetLogger(SCRIPT_NAME, logging.DEBUG).get_l()
 config_file = os.path.dirname(__file__) + '/config.ini'
+pLogger.debug("\n"*50)
 pLogger.debug("config file is {}".format(config_file))
 # log end <<
 
@@ -36,7 +38,8 @@ class SCEConfigParser:
             python_config_parser.read(self.config_file)
         except configparser.ParsingError:
             exception("正则匹配配置文件语法有误，检查配置文件！")
-        return python_config_parser
+        else:
+            return python_config_parser
 
 
 class DbInitConnect(object):
@@ -72,9 +75,13 @@ class DbInitConnect(object):
 
     # 连接数据库
     def db_connect(self):
-        connect = pymysql.connect(**self.config)
+        try:
+            connect = pymysql.connect(**self.config)
+        except(pymysql.err.OperationalError, OSError) as e:
+            exception(e)
         # 返回指针
-        return connect
+        else:
+            return connect
 
     # 游标
     def db_cursor(self):
