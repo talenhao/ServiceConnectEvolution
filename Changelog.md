@@ -14,3 +14,5 @@ Version 2017.9.18.02
 	修复cmdline中包含@#号时报数据库语法error的问题
 Version 2017.9.19.04
 	分割netgraph 画图与dot产生
+Version 2017.9.20.05
+	调整netgraph函数

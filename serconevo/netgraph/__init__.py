@@ -197,10 +197,6 @@ def gv_graph(nxg, filename, node_name=None, fmt='png'):
     pgv_graph.draw("img/"+filename+'.'+fmt, format=fmt, prog='dot')
 
 
-@spend_time
-@start_end_point(SCRIPT_NAME)
-@script_head
-@db_close
 def graph_dot(node_list):
     # create directed graph
     # g = nx.MultiDiGraph(day="Friday")
@@ -242,7 +238,11 @@ def draw_all(graph):
     gv_graph(graph, filename='all')
 
 
-if __name__ == "__main__":
+@spend_time
+@start_end_point(SCRIPT_NAME)
+@script_head
+@db_close
+def main():
     try:
         edges_list = get_relation_list_from_db()
     except Exception as e:
@@ -251,3 +251,7 @@ if __name__ == "__main__":
         gv = graph_dot(edges_list)
         draw_node(gv)
         draw_all(gv)
+
+
+if __name__ == "__main__":
+    main()

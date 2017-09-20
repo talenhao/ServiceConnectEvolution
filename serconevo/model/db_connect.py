@@ -3,7 +3,7 @@
 
 import pymysql
 import pymysql.err
-import datetime
+import base64
 import sys
 import configparser
 
@@ -56,6 +56,7 @@ class DbInitConnect(object):
             port = int(port)
             pLogger.debug("type of port {}".format(type(port)))
             password = self.python_config_parser.get("DB", "password")
+            pLogger.info('password : {}'.format(password))
             username = self.python_config_parser.get("DB", "username")
             db = self.python_config_parser.get("DB", "db_name")
             self.config = {
