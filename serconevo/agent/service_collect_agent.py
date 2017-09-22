@@ -268,9 +268,15 @@ def import2db(table, ip, port, p_name, p_pid, p_exe, p_cwd, p_cmdline, p_status,
     # process cmdline @,#... because it will raise error when insert mysql
     try:
         rcm = re.compile(r'[@#}{ ,"\']+')
+        rcm_data = re.compile(r'data[0-9]?')
+        rcm_solr = re.compile(r'solr[0-9]?')
         for arg in range(len(cmdline)):
             if rcm.search(cmdline[arg]):
                 cmdline[arg] = re.sub(rcm, '_', cmdline[arg])
+            if rcm_data.search(cmdline[arg]):
+                cmdline[arg] = re.sub(rcm_data, 'dataX', cmdline[arg])
+            if rcm_solr.search(cmdline[arg]):
+                cmdline[arg] = re.sub(rcm_solr, 'solrX', cmdline[arg])
     except:
         pLogger.error("There has some error when convert cmdline.")
         exit()
