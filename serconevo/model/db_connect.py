@@ -1,8 +1,9 @@
 #!/bin/env python
 # -*- coding:utf-8 -*-
 
-import pymysql
+import pymysql.connections
 import pymysql.err
+import pymysql.cursors
 import sys
 import configparser
 
@@ -75,7 +76,7 @@ class DbInitConnect(object):
     # 连接数据库
     def db_connect(self):
         try:
-            connect = pymysql.connect(**self.config)
+            connect = pymysql.connections.Connection(**self.config)
         except(pymysql.err.OperationalError, OSError) as e:
             exception(e)
         # 返回指针
@@ -84,7 +85,8 @@ class DbInitConnect(object):
 
     # 游标
     def db_cursor(self):
-        cursor = self.connect.cursor()
+        # cursor = self.connect.cursor()
+        cursor = pymysql.cursors.SSCursor(self.connect)
         return cursor
 
     def finally_close_all(self):
