@@ -4,6 +4,7 @@
 Collect socket information.
 Copyright (C) 2017-2027 Talen Hao. All Rights Reserved.
 """
+# todo: process p_cwd 
 
 # builtin
 import re
@@ -258,28 +259,31 @@ def ps_collect():
 def create_list_to_str(item, num):
     format_str = ",".join([item for i in range(num)])
     return format_str
-    
+
+
+def process_before_insert_db(string):
+    # process cmdline @,#... because it will raise error when insert mysql
+    try:
+        rcm = re.compile(r'[@#}{ ,"\']+')
+        rcm_data = re.compile(r'data[0-9]?/')
+        rcm_solr = re.compile(r'solr[/0-9]?/')
+        for arg in range(len(string)):
+            if rcm.search(string[arg]):
+                string[arg] = re.sub(rcm, '_', string[arg])
+            if rcm_data.search(string[arg]):
+                string[arg] = re.sub(rcm_data, 'dataX/', string[arg])
+            if rcm_solr.search(string[arg]):
+                string[arg] = re.sub(rcm_solr, 'solrX/', string[arg])
+    except:
+        pLogger.error("There has some error when convert {}.".format(string))
+        exit()
+
     
 @db_commit
 def import2db(table, ip, port, p_name, p_pid, p_exe, p_cwd, p_cmdline, p_status, p_create_time, p_username,
               server_uuid, **kwargs):
     pLogger.debug("import2db kwargs is {!r}".format(kwargs))
-    cmdline = p_cmdline
-    # process cmdline @,#... because it will raise error when insert mysql
-    try:
-        rcm = re.compile(r'[@#}{ ,"\']+')
-        rcm_data = re.compile(r'data[/0-9]?')
-        rcm_solr = re.compile(r'solr[/0-9]')
-        for arg in range(len(cmdline)):
-            if rcm.search(cmdline[arg]):
-                cmdline[arg] = re.sub(rcm, '_', cmdline[arg])
-            if rcm_data.search(cmdline[arg]):
-                cmdline[arg] = re.sub(rcm_data, 'dataX/', cmdline[arg])
-            if rcm_solr.search(cmdline[arg]):
-                cmdline[arg] = re.sub(rcm_solr, 'solrX/', cmdline[arg])
-    except:
-        pLogger.error("There has some error when convert cmdline.")
-        exit()
+    process_before_insert_db(p_cmdline)
     # 1 column_values create
     ip_column = ""
     port_column = ""
