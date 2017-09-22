@@ -37,11 +37,16 @@ service_listens_table = config_parser.get("TABLE", "listen_table")
 service_connections_table = config_parser.get("TABLE", "connection_table")
 
 
-def db_fetchall(sql_cmd):
+def db_fetchall(sql_cmd, fetch='all'):
     pLogger.debug("SQL_CMD is =====> {!r}  __________".format(sql_cmd))
     db_con.cursor.execute(sql_cmd)
     pLogger.info("=====> DB operation command result: {!r}".format(db_con.cursor.rowcount))
-    return db_con.cursor.fetchall()
+    if fetch == 'one':
+        return db_con.cursor.fetchone()
+    elif fetch == "all":
+        return db_con.cursor.fetchall()
+    else:
+        return db_con.cursor.fetchmany(size=10)
 
 
 def match_sort(project, string):
@@ -58,6 +63,30 @@ def match_sort(project, string):
         return find_one
 
 
+def node_match(name, drop_list, cwd=None, cmdline=None):
+    """
+    p_name匹配
+    :param name:
+    :param drop_list:
+    :param cwd:
+    :param cmdline:
+    :return:
+    """
+    pLogger.debug("param: {}, {}, {}, {}".format(name, drop_list, cwd, cmdline))
+    name_list = ['zabbix_server']
+    if name in drop_list:
+        return "drop"
+    elif name == 'java':
+        node = match_sort('java', name + "=" + cwd)
+        return node
+    elif name in name_list:
+        node = name
+        return node
+    else:
+        node = ' '.join(eval(cmdline)[:3])  # rename p_cmdline just use 3 field
+        return node
+
+
 def get_relation_list_from_db():
     """
     ip v,port v: connection match listen
@@ -65,94 +94,69 @@ def get_relation_list_from_db():
     ip x,port v: this explains nothing
     ip x,port x: this is a out server
     :return:
+    fetch_list
     """
     fetch_list = []
-    drop_list = ['ssh', 'sshd', 'whois']
+    from_drop_list = ['ssh', 'sshd', 'whois']
+    target_drop_list = ['sshd']
     
     # has listen program
     # step1, from node process
-    connections_has_target_sql_cmd = "SELECT c.c_ip, c.c_port, c.p_name, c.p_cwd, c.p_cmdline," \
-                                     " l.p_name, l.p_cwd, l.p_cmdline" \
-                                     " FROM {} c, {} l" \
-                                     " WHERE c.c_ip = l.l_ip and c.c_port = l.l_port" \
-        .format(service_connections_table,
-                service_listens_table,
-                )
-    connections_has_target_fetchall = db_fetchall(connections_has_target_sql_cmd)
-    for connection in connections_has_target_fetchall:
+    connections_sql_cmd = "SELECT c.c_ip, c.c_port, c.p_name, c.p_cwd, c.p_cmdline, c.id " \
+                          "FROM {} c" \
+        .format(service_connections_table)
+    connections_fetchall = db_fetchall(connections_sql_cmd, fetch='all')
+    pLogger.debug("connections fetch is: {}".format(connections_fetchall))
+    for connection in connections_fetchall:
+        c_c_ip = connection[0]
+        c_c_port = connection[1]
         c_p_name = connection[2]
         c_p_cwd = connection[3]
         c_p_cmdline = connection[4]
-        l_p_name = connection[5]
-        l_p_cwd = connection[6]
-        l_p_cmdline = connection[7]
-        pLogger.debug("\n{0}{0}\nconnection is {1!r}, type: {2!r}"
+        c_id = connection[5]
+        pLogger.debug("\n{0}\nprocess id {3}\n{0}\nconnection is {1!r}, type: {2!r}"
                       .format(identify_line,
                               connection,
-                              type(c_p_cmdline)
+                              type(c_p_cmdline),
+                              c_id
                               )
                       )
         from_node = ' '.join(eval(c_p_cmdline))  # c.p_cmdline
-        target_node = ' '.join(eval(l_p_cmdline))  # l.p_cmdline
+        target_node = c_c_ip + ':' + c_c_port
         pLogger.debug("from_node source: {}  target_node source: {}".format(from_node, target_node))
+
         # step2, target node process
-        if c_p_name in drop_list or l_p_name in drop_list:
-            pLogger.warn("From {} to {} not needed, drop.".format(c_p_name, l_p_name))
+        result = node_match(c_p_name, from_drop_list, cwd=c_p_cwd, cmdline=c_p_cmdline)
+        if result == "drop":
+            pLogger.warn("From {} to {} not needed, drop.".format(c_p_name, target_node))
             pLogger.debug("drop item is : {}".format(connection))
             continue
-        if c_p_name == 'java':
-            from_node = match_sort('java', from_node + "=" + c_p_cwd)
-        elif c_p_name == 'zabbix_server':
-            from_node = c_p_name
         else:
-            from_node = ' '.join(eval(c_p_cmdline)[:3])  # rename p_cmdline just use 3 field
-        if l_p_name == 'java':
-            target_node = match_sort('java', target_node + '=' + l_p_cwd)
-        elif l_p_name == "zabbix_server":
-            target_node = l_p_name
+            from_node = result
+        # listen program
+        # step3, from node process
+        match_listen_sql_cmd = "select L.l_ip, L.l_port, L.p_cmdline, L.p_cwd, L.p_name from {} L" \
+                               " where L.l_ip = {!r} and L.l_port = {!r}" \
+            .format(service_listens_table, c_c_ip, c_c_port)
+        match_listen = db_fetchall(match_listen_sql_cmd, fetch='one')
+        pLogger.debug("match_listen_result: {!r}".format(match_listen))
+        if match_listen:
+            pLogger.debug("match_listen is : {}".format(match_listen))
+            # 取出target的程序命令行
+            l_p_cmdline = match_listen[2]
+            l_p_cwd = match_listen[3]
+            l_p_name = match_listen[4]
+            pLogger.debug("target_node: {}, {}, {}".format(l_p_name, l_p_cwd, l_p_cmdline))
+            result = node_match(l_p_name, target_drop_list, cwd=l_p_cwd, cmdline=l_p_cmdline)
+            if result == "drop":
+                pLogger.warn("From {} to {} not needed, drop.".format(c_p_name, l_p_name))
+                pLogger.debug("drop item is : {}".format(connection))
+                continue
+            else:
+                target_node = result
         else:
-            target_node = ' '.join(eval(l_p_cmdline)[:3])  # rename p_cmdline just use 3 field
-        # finally from_node, target_node
-        pLogger.debug("{}\nfrom_node :{!r} \ntarget_node: {!r}".format(identify_line, from_node, target_node))
-        fetch_list.append((from_node.strip(), target_node.strip()))
+            target_node = target_node
 
-    # no listen program
-    # step1, from node process
-    connections_no_target_sql_cmd = "SELECT c.c_ip, c.c_port, c.p_name, c.p_cwd, c.p_cmdline" \
-                                    " FROM {} c" \
-                                    " WHERE NOT EXISTS" \
-                                    " (SELECT l.id FROM {} l" \
-                                    "   where c.c_ip = l.l_ip and c.c_port = l.l_port" \
-                                    " )"\
-        .format(service_connections_table,
-                service_listens_table,
-                )
-    connections_no_target_fetchall = db_fetchall(connections_no_target_sql_cmd)
-    for connection in connections_no_target_fetchall:
-        c_p_ip = connection[0]
-        c_p_port = connection[1]
-        c_p_name = connection[2]
-        c_p_cwd = connection[3]
-        c_p_cmdline = connection[4]
-        pLogger.debug("\n{0}{0}\nconnection is {1!r}, type: {2!r}"
-                      .format(identify_line,
-                              connection,
-                              type(c_p_cmdline)
-                              )
-                      )
-        from_node = ' '.join(eval(c_p_cmdline))  # c.p_cmdline
-        target_node = c_p_ip + ":" + c_p_port
-        pLogger.debug("from_node source: {}  target_node source: {}".format(from_node, target_node))
-        # step2, target node process
-        if c_p_name in drop_list or l_p_name in drop_list:
-            pLogger.warn("From {} to {} not needed, drop.".format(c_p_name, l_p_name))
-            continue
-        if c_p_name == 'java':
-            from_node = match_sort('java', from_node + "=" + c_p_cwd)
-        elif c_p_name == 'zabbix_server':
-            from_node = c_p_name
-        else:
-            from_node = ' '.join(eval(c_p_cmdline)[:3])  # rename p_cmdline just use 3 field
         # finally from_node, target_node
         pLogger.debug("{}\nfrom_node :{!r} \ntarget_node: {!r}".format(identify_line, from_node, target_node))
         fetch_list.append((from_node.strip(), target_node.strip()))
