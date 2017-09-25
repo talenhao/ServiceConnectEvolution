@@ -1,1 +1,0 @@
-pip install pygraphviz==1.4rc1 --install-option="--include-path=/usr/include/graphviz" --install-option="--library-path=/usr/lib64/graphviz"

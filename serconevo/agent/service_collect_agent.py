@@ -4,7 +4,7 @@
 Collect socket information.
 Copyright (C) 2017-2027 Talen Hao. All Rights Reserved.
 """
-# todo: process p_cwd 
+# todo: process p_cwd
 
 # builtin
 import re

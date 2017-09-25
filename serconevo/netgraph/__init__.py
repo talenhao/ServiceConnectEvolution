@@ -249,7 +249,7 @@ def draw_all(graph):
 def main():
     try:
         edges_list = get_relation_list_from_db()
-    except Exception as e:
+    except:
         traceback.print_exc()
     else:
         gv = graph_dot(edges_list)
