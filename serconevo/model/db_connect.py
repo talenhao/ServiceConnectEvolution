@@ -47,8 +47,8 @@ class DbInitConnect(object):
     数据库初始化及连接，游标
     """
     # 初始化基本变量
-    def __init__(self):
-        self.python_config_parser = SCEConfigParser().config_parser()
+    def __init__(self, config_file=config_file):
+        self.python_config_parser = SCEConfigParser(config_file).config_parser()
         try:
             host = self.python_config_parser.get("DB", "host")
             pLogger.debug("type of port {} {}".format(type(host), host))
