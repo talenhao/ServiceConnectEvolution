@@ -15,7 +15,7 @@ from serconevo.log4p import log4p
 SCRIPT_NAME = os.path.basename(__file__)
 pLogger = log4p.GetLogger(SCRIPT_NAME, logging.DEBUG).get_l()
 config_file = os.path.dirname(os.path.abspath(__file__)) + '/config.ini'
-pLogger.debug("\n"*50)
+pLogger.debug("\n" * 50)
 pLogger.debug("config file is {}".format(config_file))
 # log end <<
 
