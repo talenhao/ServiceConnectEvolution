@@ -16,3 +16,5 @@ Version 2017.9.19.04
 	分割netgraph 画图与dot产生
 Version 2017.9.20.05
 	调整netgraph函数
+Version 2017.9.29.20
+	添加收集连接到服务的链接收集
