@@ -174,12 +174,15 @@ def get_relation_list_from_db():
                       )
         from_node = ' '.join(eval(c_p_cmdline))  # c.p_cmdline
         target_node = c_c_ip + ':' + c_c_port
-        pLogger.debug("from_node source: {}  target_node source: {}".format(from_node, target_node))
+        pLogger.debug("from_node source: {}  target_node source: {}".format(
+            from_node, target_node))
 
         # step2, target node process
-        result = node_match(c_p_name, from_drop_list, cwd=c_p_cwd, cmdline=c_p_cmdline)
+        result = node_match(c_p_name, from_drop_list,
+                            cwd=c_p_cwd, cmdline=c_p_cmdline)
         if result == "drop":
-            pLogger.warn("From {} to {} not needed, drop.".format(c_p_name, target_node))
+            pLogger.warn("From {} to {} not needed, drop.".format(
+                c_p_name, target_node))
             pLogger.debug("drop item is : {}".format(connection))
             continue
         else:
@@ -197,10 +200,13 @@ def get_relation_list_from_db():
             l_p_cmdline = match_listen[2]
             l_p_cwd = match_listen[3]
             l_p_name = match_listen[4]
-            pLogger.debug("target_node: {}, {}, {}".format(l_p_name, l_p_cwd, l_p_cmdline))
-            result = node_match(l_p_name, target_drop_list, cwd=l_p_cwd, cmdline=l_p_cmdline)
+            pLogger.debug("target_node: {}, {}, {}".format(
+                l_p_name, l_p_cwd, l_p_cmdline))
+            result = node_match(l_p_name, target_drop_list,
+                                cwd=l_p_cwd, cmdline=l_p_cmdline)
             if result == "drop":
-                pLogger.warn("From {} to {} not needed, drop.".format(c_p_name, l_p_name))
+                pLogger.warn("From {} to {} not needed, drop.".format(
+                    c_p_name, l_p_name))
                 pLogger.debug("drop item is : {}".format(connection))
                 continue
             else:
@@ -209,15 +215,17 @@ def get_relation_list_from_db():
             target_node = target_node
 
         # finally from_node, target_node
-        pLogger.debug("{}\nfrom_node :{!r} \ntarget_node: {!r}".format(identify_line, from_node, target_node))
+        pLogger.debug("{}\nfrom_node :{!r} \ntarget_node: {!r}".format(
+            identify_line, from_node, target_node))
         fetch_list.append((from_node.strip(), target_node.strip()))
-    pLogger.debug("{}\nfetch_list is :\n {!r}".format(identify_line, fetch_list))
+    pLogger.debug("{}\nfetch_list is :\n {!r}".format(
+        identify_line, fetch_list))
     return fetch_list
 
 
 def gv_graph(nxg, filename, node_name=None, fmt='png'):
     # save a dot file to local disk
-    nxd.nx_agraph.write_dot(nxg, "dot/"+filename+'.dot')
+    nxd.nx_agraph.write_dot(nxg, "dot/" + filename + '.dot')
     # convert to pygraphviz agraph object
     pgv_graph = nxd.nx_agraph.to_agraph(nxg)
     pgv_graph.graph_attr.update(rankdir="LR")
@@ -244,17 +252,17 @@ def gv_graph(nxg, filename, node_name=None, fmt='png'):
     pgv_graph.edge_attr.update(splines='compound', concentrate='true')
     if node_name:
         pgv_graph.add_node(node_name,
-            fillcolor='red:yellow',
-            shape='octagon',
-            style='filled',
-            # gradientangle='90',
-            fontsize=10,
-            labeljust='l',
-            height='.1'
-        )
+                           fillcolor='red:yellow',
+                           shape='octagon',
+                           style='filled',
+                           # gradientangle='90',
+                           fontsize=10,
+                           labeljust='l',
+                           height='.1'
+                           )
     else:
         pLogger.warning("No center node.")
-    pgv_graph.draw("img/"+filename+'.'+fmt, format=fmt, prog='dot')
+    pgv_graph.draw("img/" + filename + '.' + fmt, format=fmt, prog='dot')
 
 
 def graph_dot(node_list):
@@ -290,7 +298,8 @@ def draw_node(graph):
         pLogger.debug(g_new.graph)
         # draw a graph
         gv_graph(g_new,
-                 filename=source_node.replace(' ', '-').replace('/', '_').replace('=', '').replace('.', '_'),
+                 filename=source_node.replace(
+                     ' ', '-').replace('/', '_').replace('=', '').replace('.', '_'),
                  node_name=source_node)
 
 
