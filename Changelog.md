@@ -18,3 +18,5 @@ Version 2017.9.20.05
 	调整netgraph函数
 Version 2017.9.29.20
 	添加收集连接到服务的链接收集
+Version 2017.9.30.21
+	修改get_relation_list_from_db的算法

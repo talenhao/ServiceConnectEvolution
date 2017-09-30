@@ -8,6 +8,7 @@
 
 import traceback
 import re
+import pickle
 
 import networkx as nx
 import networkx.algorithms.traversal as nx_a_t
@@ -38,6 +39,13 @@ service_connections_table = config_parser.get("TABLE", "connection_table")
 
 
 def db_fetchall(sql_cmd, fetch='all'):
+    """
+    execute sql_cmd, if no set fetch arg, default return 10 results;
+    if set fetch arg, it can be set 'one' or 'all'.
+    :param sql_cmd:
+    :param fetch:
+    :return:
+    """
     pLogger.debug("SQL_CMD is =====> {!r}  __________".format(sql_cmd))
     db_con.cursor.execute(sql_cmd)
     pLogger.info("=====> DB operation command result: {!r}".format(db_con.cursor.rowcount))
@@ -63,16 +71,23 @@ def match_sort(project, string):
         return find_one
 
 
-def node_match(name, drop_list, cwd=None, cmdline=None):
+def node_match(name, cwd=None, cmdline=None):
     """
-    p_name匹配
+    process P_name, cmdline maybe any string list;
+    you cat assign some node name use p_name or use a short identify.
     :param name:
-    :param drop_list:
     :param cwd:
     :param cmdline:
     :return:
     """
-    pLogger.debug("param: {}, {}, {}, {}".format(name, drop_list, cwd, cmdline))
+    drop_list = ['ssh', 'sshd', 'whois', 'sshd']
+#    from_drop_list = ['ssh', 'sshd', 'whois']
+#    target_drop_list = ['sshd']
+#    if flag == 'f':
+#        drop_list = from_drop_list
+#    elif flag == "t":
+#        drop_list = target_drop_list
+    pLogger.debug("param: {}, {}, {}".format(name, cwd, cmdline))
     name_list = ['zabbix_server']
     if name in drop_list:
         return "drop"
@@ -97,44 +112,39 @@ def get_relation_list_from_db():
     fetch_list
     """
     fetch_list = []
-    from_drop_list = ['ssh', 'sshd', 'whois']
-    target_drop_list = ['sshd']
-    
+    now_process_num = 0
     # has listen program
     # step1, from node process
-    connections_sql_cmd = "SELECT c.c_ip, c.c_port, c.p_name, c.p_cwd, c.p_cmdline, c.id " \
+    connections_sql_cmd = "SELECT c.c_ip, c.c_port, c.p_name, c.p_cwd, c.p_cmdline, c.p_pid, c.flag " \
                           "FROM {} c" \
         .format(service_connections_table)
     connections_fetchall = db_fetchall(connections_sql_cmd, fetch='all')
     pLogger.debug("connections fetch is: {}".format(connections_fetchall))
     for connection in connections_fetchall:
+        now_process_num += 1
+        pLogger.info("Now process No. => {!r}".format(now_process_num))
         c_c_ip = connection[0]
         c_c_port = connection[1]
         c_p_name = connection[2]
         c_p_cwd = connection[3]
         c_p_cmdline = connection[4]
         c_id = connection[5]
-        pLogger.debug("\n{0}\nprocess id {3}\n{0}\nconnection is {1!r}, type: {2!r}"
+        flag = connection[6]
+        pLogger.debug("\n{0}\nprocess id {3}"
+                      "\n{0}\nconnection is {1!r}, type: {2!r}, with flag {4!r}, type(flag)=> {5!r}"
                       .format(identify_line,
                               connection,
                               type(c_p_cmdline),
-                              c_id
+                              c_id,
+                              flag,
+                              type(flag)
                               )
                       )
-        from_node = ' '.join(eval(c_p_cmdline))  # c.p_cmdline
-        target_node = c_c_ip + ':' + c_c_port
-        pLogger.debug("from_node source: {}  target_node source: {}".format(from_node, target_node))
+        # name_node = ' '.join(eval(c_p_cmdline))  # c.p_cmdline
+        name_node = c_p_cmdline
+        n_result = node_match(c_p_name, cwd=c_p_cwd, cmdline=c_p_cmdline)
 
-        # step2, target node process
-        result = node_match(c_p_name, from_drop_list, cwd=c_p_cwd, cmdline=c_p_cmdline)
-        if result == "drop":
-            pLogger.warn("From {} to {} not needed, drop.".format(c_p_name, target_node))
-            pLogger.debug("drop item is : {}".format(connection))
-            continue
-        else:
-            from_node = result
-        # listen program
-        # step3, from node process
+        # ip node convert
         match_listen_sql_cmd = "select L.l_ip, L.l_port, L.p_cmdline, L.p_cwd, L.p_name from {} L" \
                                " where L.l_ip = {!r} and L.l_port = {!r}" \
             .format(service_listens_table, c_c_ip, c_c_port)
@@ -147,26 +157,40 @@ def get_relation_list_from_db():
             l_p_cwd = match_listen[3]
             l_p_name = match_listen[4]
             pLogger.debug("target_node: {}, {}, {}".format(l_p_name, l_p_cwd, l_p_cmdline))
-            result = node_match(l_p_name, target_drop_list, cwd=l_p_cwd, cmdline=l_p_cmdline)
-            if result == "drop":
-                pLogger.warn("From {} to {} not needed, drop.".format(c_p_name, l_p_name))
-                pLogger.debug("drop item is : {}".format(connection))
-                continue
-            else:
-                target_node = result
+            convert_node = l_p_cmdline
+            c_result = node_match(l_p_name, cwd=l_p_name, cmdline=l_p_cmdline)
         else:
-            target_node = target_node
-
+            # convert_node = c_c_ip + ':' + c_c_port
+            convert_node = c_c_ip
+            c_result = convert_node
+            pLogger.debug("convert_node with port {!r}".format(c_c_ip + ':' + c_c_port))
+        pLogger.debug("convert_node=>{!r}, c_result=>{!r}".format(convert_node, c_result))
+        if n_result == "drop" or c_result == 'drop':
+            pLogger.warn("process {} has connection {} are not needed, drop.".format(name_node, convert_node))
+            pLogger.debug("drop item is : {}".format(connection))
+            continue
+        else:
+            if flag == 1:
+                from_node = n_result
+                target_node = c_result
+            elif flag == 0:
+                from_node = c_result
+                target_node = n_result
+            else:
+                pLogger.error("flag is needed!")
+                continue
         # finally from_node, target_node
         pLogger.debug("{}\nfrom_node :{!r} \ntarget_node: {!r}".format(identify_line, from_node, target_node))
         fetch_list.append((from_node.strip(), target_node.strip()))
     pLogger.debug("{}\nfetch_list is :\n {!r}".format(identify_line, fetch_list))
+    with open('fetch_list.bin', 'wb') as dump_file:
+        pickle.dump(fetch_list, dump_file, True)
     return fetch_list
 
 
 def gv_graph(nxg, filename, node_name=None, fmt='png'):
     # save a dot file to local disk
-    nxd.nx_agraph.write_dot(nxg, "dot/"+filename+'.dot')
+    nxd.nx_agraph.write_dot(nxg, "dot/" + filename + '.dot')
     # convert to pygraphviz agraph object
     pgv_graph = nxd.nx_agraph.to_agraph(nxg)
     pgv_graph.graph_attr.update(rankdir="LR")
@@ -198,7 +222,7 @@ def gv_graph(nxg, filename, node_name=None, fmt='png'):
                            height='.1')
     else:
         pLogger.warning("No center node.")
-    pgv_graph.draw("img/"+filename+'.'+fmt, format=fmt, prog='dot')
+    pgv_graph.draw("img/" + filename + '.' + fmt, format=fmt, prog='dot')
 
 
 def graph_dot(node_list):
