@@ -6,7 +6,7 @@
             "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         },
         "detail": {
-            "format": "%(asctime)-15s %(levelname)-5s ScriptFile: %(filename)s Funcation: %(funcName)s +%(lineno)d [%(threadName)s] %(message)s"
+            "format": "%(asctime)-15s %(levelname)-5s %(filename)s +%(lineno)d %(funcName)s [%(threadName)s]: %(message)s"
         }
     },
 

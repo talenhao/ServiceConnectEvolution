@@ -71,6 +71,7 @@ class DbInitConnect(object):
         except configparser.NoOptionError as e:
             exception(e)
         self.connect = self.db_connect()
+        self.sscursor = self.db_sscursor()
         self.cursor = self.db_cursor()
 
     # 连接数据库
@@ -84,9 +85,14 @@ class DbInitConnect(object):
             return connect
 
     # 游标
-    def db_cursor(self):
+    def db_sscursor(self):
         # cursor = self.connect.cursor()
         cursor = pymysql.cursors.SSCursor(self.connect)
+        return cursor
+
+    def db_cursor(self):
+        # cursor = self.connect.cursor()
+        cursor = pymysql.cursors.Cursor(self.connect)
         return cursor
 
     def finally_close_all(self):

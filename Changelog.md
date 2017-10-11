@@ -20,3 +20,7 @@ Version 2017.9.29.20
 	添加收集连接到服务的链接收集
 Version 2017.9.30.21
 	修改get_relation_list_from_db的算法
+Version 2017.9.30.22
+	netgraph模块使用多线程池处理
+Version 2017.10.02.22
+	netgraph模块使用多线程池处理,使用sscursor有点问题,回退
