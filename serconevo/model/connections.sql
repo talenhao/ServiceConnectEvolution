@@ -1,0 +1,22 @@
+CREATE TABLE `connections` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'primary key',
+  `l_ip` varchar(40) NOT NULL COMMENT 'laddr ip',
+  `l_port` varchar(10) NOT NULL COMMENT 'laddr port',
+  `r_ip` varchar(40) COMMENT 'raddr ip',
+  `r_port` varchar(10) COMMENT 'raddr port',
+  `p_name` varchar(255) NOT NULL COMMENT 'process name',
+  `p_pid` varchar(5) NOT NULL COMMENT 'process name',
+  `p_exe` varchar(255) NOT NULL COMMENT 'process exe',
+  `p_cwd` varchar(255) NOT NULL COMMENT 'process cwd',
+  `p_status` varchar(10) NOT NULL COMMENT 'process status',
+  `p_create_time` datetime NOT NULL COMMENT 'process create time',
+  `p_username` varchar(20) NOT NULL COMMENT 'process username',
+  `server_uuid` char(36) NOT NULL COMMENT 'server machine id',
+  `local_ip` varchar(255) NOT NULL COMMENT 'connection ip',
+  `CreateTime` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'record create time',
+  `p_cmdline` text NOT NULL COMMENT 'process cmdline',
+  `flag` tinyint(1) NOT NULL COMMENT 'positive 1, reverse 0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `l_r_addr` (`l_ip`,`l_port`,`r_ip`,`r_port`,`server_uuid`),
+  KEY `server_uuid_index` (`server_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
