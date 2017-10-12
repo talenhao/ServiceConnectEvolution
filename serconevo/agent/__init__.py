@@ -272,12 +272,14 @@ def ps_collect():
                                     else:
                                         r_ip = None
                                         r_port = None
+                                        l_ip = server_ip
                                     pLogger.debug("l_ip, l_port, r_ip, r_port is {!r}, {!r}, {!r}, {!r}".format(
                                         l_ip, l_port, r_ip, r_port))
-                                    import2db(connection_table, l_ip, l_port, r_ip, r_port,
-                                              name, pid, exe, cwd, cmdline, status, create_time, username,
-                                              server_uuid, local_ip=server_ip, flag=flag
-                                              )
+                                    for l_ip_address in l_ip:
+                                        import2db(connection_table, l_ip_address, l_port, r_ip, r_port,
+                                                  name, pid, exe, cwd, cmdline, status, create_time, username,
+                                                  server_uuid, local_ip=server_ip, flag=flag
+                                                  )
                             else:
                                 pLogger.debug(
                                     "process_connection_ip_port is empty!")
