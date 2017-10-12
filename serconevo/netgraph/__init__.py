@@ -4,7 +4,9 @@
 # * author: "Talen Hao(天飞)<talenhao@gmail.com>"      *
 # ******************************************************
 """
-# todo menu
+# todo ok 127.0.0.1 connect 127.0.0.1
+# todo ok drop ip map
+# todo ok process None:None raddr
 
 import traceback
 import re
@@ -22,7 +24,6 @@ from serconevo.agent import spend_time
 from serconevo.agent import start_end_point
 from serconevo.agent import identify_line
 from serconevo.agent import connection_table
-from serconevo.agent import config_parser
 from serconevo.agent import db_con
 
 # for log >>
@@ -107,70 +108,87 @@ def node_match(name, cwd=None, cmdline=None):
         return node
 
 
-def match_nodes(connection_table, r_ip, r_port):
+def match_nodes(connection_table, r_ip, r_port, server_uuid):
+    """
     # ip node match
-    match_sql_cmd = "select L.l_ip, L.l_port, L.p_cmdline, L.p_cwd, L.p_name "\
-        "FROM {} L where L.l_ip = {!r} and L.l_port = {!r} limit 1".format(
-            connection_table, r_ip, r_port)
+    TIME-WAIT  0      0      127.0.0.1:47618              127.0.0.1:8097
+    TIME-WAIT  0      0      ::ffff:127.0.0.1:8069        ::ffff:127.0.0.1:50080
+    """
+    if r_ip == '127.0.0.1':
+        match_sql_cmd = "select L.l_ip, L.l_port, L.p_cmdline, L.p_cwd, L.p_name "\
+            "FROM {} L where L.l_ip = {!r} and L.l_port = {!r} and L.server_uuid = {!r} limit 1".format(
+                connection_table, r_ip, r_port, server_uuid)
+    else:
+        match_sql_cmd = "select L.l_ip, L.l_port, L.p_cmdline, L.p_cwd, L.p_name "\
+            "FROM {} L where L.l_ip = {!r} and L.l_port = {!r} limit 1".format(
+                connection_table, r_ip, r_port)
     match_node = db_fetchall(match_sql_cmd, fetch='one')
     return match_node
 
 
 def connection_process(connection):
-    pLogger.info("Run connection_process with PID {!r}".format(os.getpid()))
-#    c_l_ip = connection['l_ip']
-#    c_l_port = connection["l_port"]
+    """
+    process connection.
+    if connection is a listen, drop it,
+
+    """
     c_r_ip = connection["r_ip"]
-    c_r_port = connection["r_port"]
-    c_p_name = connection['p_name']
-    c_p_cwd = connection['p_cwd']
-    c_p_cmdline = connection['p_cmdline']
-    c_id = connection['id']
-    flag = connection['flag']
-    pLogger.debug("\n{0}\nprocess id {3}"
-                  "connection is {1!r}, type: {2!r}, with flag {4!r}, type(flag)=> {5!r}"
-                  .format(identify_line,
-                          connection,
-                          type(c_p_cmdline),
-                          c_id,
-                          flag,
-                          type(flag)
-                          )
-                  )
-    c_result = node_match(c_p_name, cwd=c_p_cwd, cmdline=c_p_cmdline)
-
-    match_node = match_nodes(connection_table, c_r_ip, c_r_port)
-    if match_node:
-        pLogger.debug("match_node is : {}".format(match_node))
-        m_p_cmdline = match_node['p_cmdline']
-        m_p_cwd = match_node['p_cwd']
-        m_p_name = match_node['p_name']
-        pLogger.debug("match_node: {}, {}, {}".format(m_p_name, m_p_cwd, m_p_cmdline))
-        m_result = node_match(m_p_name, cwd=m_p_name, cmdline=m_p_cmdline)
-    else:
-        convert_node = c_r_ip + ':' + c_r_port
-        pLogger.debug("convert_node with port {!r}".format(convert_node))
-        m_result = convert_node
-    pLogger.debug("c_result=>{!r}, m_result=>{!r}".format(c_result, m_result))
-
-    if c_result == "drop" or m_result == 'drop':
-        pLogger.warn("process {} has connection {} are not needed, drop.".format(c_p_name, m_result))
-        pLogger.debug("drop item is : {}".format(connection))
+    if c_r_ip == 'None':
         return
     else:
-        if flag == 1:
-            from_node = c_result
-            target_node = m_result
-        elif flag == 0:
-            from_node = m_result
-            target_node = c_result
+        # c_l_ip = connection['l_ip']
+        # c_l_port = connection["l_port"]
+        c_r_port = connection["r_port"]
+        c_p_name = connection['p_name']
+        c_p_cwd = connection['p_cwd']
+        c_p_cmdline = connection['p_cmdline']
+        c_id = connection['id']
+        flag = connection['flag']
+        c_server_uuid = connection['server_uuid']
+        pLogger.debug("\n{0}\nprocess id {3}"
+                      "connection is {1!r}, type: {2!r}, with flag {4!r}, type(flag)=> {5!r}"
+                      .format(identify_line,
+                              connection,
+                              type(c_p_cmdline),
+                              c_id,
+                              flag,
+                              type(flag)
+                              )
+                      )
+        c_result = node_match(c_p_name, cwd=c_p_cwd, cmdline=c_p_cmdline)
+
+        match_node = match_nodes(connection_table, c_r_ip, c_r_port, c_server_uuid)
+        if match_node:
+            pLogger.debug("match_node is : {}".format(match_node))
+            m_p_cmdline = match_node['p_cmdline']
+            m_p_cwd = match_node['p_cwd']
+            m_p_name = match_node['p_name']
+            pLogger.debug("match_node: {}, {}, {}".format(m_p_name, m_p_cwd, m_p_cmdline))
+            m_result = node_match(m_p_name, cwd=m_p_name, cmdline=m_p_cmdline)
         else:
-            pLogger.error("flag is needed!")
+            convert_node = c_r_ip + ':' + c_r_port
+            pLogger.debug("convert_node with port {!r}".format(convert_node))
+            m_result = convert_node
+        pLogger.debug("c_result=>{!r}, m_result=>{!r}".format(c_result, m_result))
+
+        if c_result == "drop" or m_result == 'drop':
+            pLogger.warn("process {} has connection {} are not needed, drop.".format(c_p_name, m_result))
+            pLogger.debug("drop item is : {}".format(connection))
             return
-    # finally from_node, target_node
-    pLogger.debug("{}\nfrom_node :{!r} \ntarget_node: {!r}".format(identify_line, from_node, target_node))
-    # time.sleep(1)
-    return from_node.strip(), target_node.strip()
+        else:
+            if flag == 1:
+                from_node = c_result
+                target_node = m_result
+            elif flag == 0:
+                from_node = m_result
+                target_node = c_result
+            else:
+                pLogger.error("flag is needed!")
+                return
+        # finally from_node, target_node
+        pLogger.debug("{}\nfrom_node :{!r} \ntarget_node: {!r}".format(identify_line, from_node, target_node))
+        # time.sleep(1)
+        return from_node.strip(), target_node.strip()
 
 
 def fetch_list_process(result_tuple):
@@ -197,6 +215,7 @@ def get_relation_list_from_db():
 @db_close
 def process_ralation(connections):
     # pool = multiprocessing.Pool(processes=4)
+    pLogger.info("Run connection_process with PID {!r}".format(os.getpid()))
     now_process_num = 0
     for con in connections:
         now_process_num += 1
@@ -268,29 +287,47 @@ def graph_dot(node_list):
     return g
 
 
+def ip_port_decide(string):
+    """
+    decide str is a ip:port
+    """
+    re_compile = re.compile(r'(?<![0-9])(?:(?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5])[.](?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5])[.](?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5])[.](?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5]))(?![0-9]):[0-9]{1,5}')
+    try:
+        re_match = re_compile.fullmatch(string)
+        pLogger.debug("ip match: {!r}".format(re_match))
+    except AttributeError:
+        pLogger.debug("{} has no ip:port re compile!!".format(string))
+    else:
+        return re_match
+
+
 def draw_node(graph):
     g = graph
     for source_node in g.node:
-        dfs_edges_result = nx_a_t.dfs_edges(g, source=source_node)
-        gr = g.reverse(copy=True)
-        gr_dfs_edges_result = nx_a_t.dfs_edges(gr, source=source_node)
+        decide_ip_port = ip_port_decide(source_node)
+        if not decide_ip_port:
+            dfs_edges_result = nx_a_t.dfs_edges(g, source=source_node)
+            gr = g.reverse(copy=True)
+            gr_dfs_edges_result = nx_a_t.dfs_edges(gr, source=source_node)
 
-        # gv_graph(gr, filename='gr')
-        follows = list(dfs_edges_result)
-        leaders = list(gr_dfs_edges_result)
-        pLogger.debug("\nfollows type{}: {}\ntype {} leaders: {}".format(
-            type(follows), follows, type(leaders), leaders))
-        gr_new = nx.DiGraph(name='gr')
-        gr_new.add_edges_from(leaders)
-        pLogger.debug(gr_new.graph)
-        g_new = gr_new.reverse(copy=True)
-        g_new.add_edges_from(follows)
-        pLogger.debug(g_new.graph)
-        # draw a graph
-        gv_graph(g_new,
-                 filename=source_node.replace(' ', '-').replace('/', '_').replace('=', ''),
-                 node_name=source_node,
-                 fmt='pdf')
+            # gv_graph(gr, filename='gr')
+            follows = list(dfs_edges_result)
+            leaders = list(gr_dfs_edges_result)
+            pLogger.debug("\nfollows type{}: {}\ntype {} leaders: {}".format(
+                type(follows), follows, type(leaders), leaders))
+            gr_new = nx.DiGraph(name='gr')
+            gr_new.add_edges_from(leaders)
+            pLogger.debug(gr_new.graph)
+            g_new = gr_new.reverse(copy=True)
+            g_new.add_edges_from(follows)
+            pLogger.debug(g_new.graph)
+            # draw a graph
+            gv_graph(g_new,
+                     filename=source_node.replace(' ', '-').replace('/', '_').replace('=', ''),
+                     node_name=source_node,
+                     fmt='pdf')
+        else:
+            pLogger.debug("ip:port {!r} match, drop drawing.".format(source_node))
 
 
 def draw_all(graph):

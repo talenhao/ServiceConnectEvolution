@@ -22,7 +22,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='2017.10.10.25',
+    version='2017.10.12.29',
 
     description='collect every pid connections, use networkx graph',
     long_description=long_description,

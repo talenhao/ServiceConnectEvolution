@@ -108,7 +108,7 @@ class DbInitConnect(object):
     def show_databases(self):
         sql_cmd = 'show create database yed_collect'
         try:
-            self.cursor.execute(sql_cmd)
+            self.ssdictcursor.execute(sql_cmd)
         except:
             pLogger.error('数据库操作失败!')
         finally:

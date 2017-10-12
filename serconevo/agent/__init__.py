@@ -77,9 +77,9 @@ def db_commit(func):
         # config_parser = db_connect.SCEConfigParser().config_parser()
         sql_cmd = func(*args, **kwargs)
         pLogger.debug("SQL_CMD is =====> {!r}  __________".format(sql_cmd))
-        db_con.cursor.execute(sql_cmd)
+        db_con.dictcursor.execute(sql_cmd)
         pLogger.info("=====> DB operation command result: {!r}".format(
-            db_con.cursor.rowcount))
+            db_con.dictcursor.rowcount))
         db_con.connect.commit()
     return warper
 
@@ -231,7 +231,8 @@ def ps_collect():
                             # Second, collect all connections tag a flag.
                             for connection in connections:
                                 if connection.status == psutil.CONN_ESTABLISHED \
-                                        or connection.status == psutil.CONN_NONE:
+                                        or connection.status == psutil.CONN_NONE \
+                                        or connection.status == psutil.CONN_LISTEN:
                                     if connection.laddr[1] in process_listen_port:
                                         flag = 0
                                     else:
