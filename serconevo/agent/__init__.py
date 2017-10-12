@@ -123,22 +123,25 @@ def get_options():
             sys.exit()
 
 
-def get_server_ip():
+def get_host_ip():
     ip_set = set()
     nia = psutil.net_if_addrs()
     pLogger.debug(nia)
-    for i_face in nia.values():
+    for i_face, addrs in nia.items():
         pLogger.debug("i_face is {}".format(i_face))
-        for addr in i_face:
-            pLogger.debug("addr is {}".format(addr))
-            if addr.address != '127.0.0.1' and addr.address != '::1':
-                if str(addr.family) == 'AddressFamily.AF_INET' or str(addr.family) == 'AddressFamily.AF_INET6':
+        if i_face == 'lo':
+            pLogger.warn("{!r} is loop address ".format(i_face))
+            continue
+        else:
+            for addr in addrs:
+                pLogger.debug("addr is {}".format(addr))
+                # here we don't need ipv6
+                if str(addr.family) == 'AddressFamily.AF_INET':
+                        # or str(addr.family) == 'AddressFamily.AF_INET6':
                     pLogger.debug('get ip {}'.format(addr.address))
                     ip_set.add(addr.address)
                 else:
                     pLogger.warn("{!r} is not a INET address".format(addr))
-            else:
-                pLogger.warn("{!r} is loop address ".format(addr))
     pLogger.debug("ip_set = {!r}".format(ip_set))
     return ip_set
 
@@ -153,7 +156,7 @@ def convert_ipv6_ipv4(ipv6):
 
 def ps_collect():
     # get bind ip for this server.
-    server_ip = get_server_ip()
+    server_ip = get_host_ip()
     # listen_ip_list = server_ip
     server_uuid = get_server_uuid()
     # 直接使用process_iter()迭代实例化每个进程.
