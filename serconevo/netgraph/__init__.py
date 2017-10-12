@@ -13,19 +13,17 @@ import re
 import pdb
 # import time
 import pickle
-# import multiprocessing
-import networkx as nx
-import networkx.algorithms.traversal as nx_a_t
-import networkx.drawing as nxd
+
 # import user modles
 from serconevo.agent import script_head
 from serconevo.agent import db_close
 from serconevo.agent import spend_time
 from serconevo.agent import start_end_point
-from serconevo.agent import identify_line
+from serconevo import identify_line
 from serconevo.agent import connection_table
 from serconevo.agent import db_con
-
+from serconevo.netgraph.drawgraph import draw_from_pickle
+from serconevo.netgraph.drawgraph import pickle_from_file
 # for log >>
 import logging
 import os
@@ -237,103 +235,6 @@ def pickle_to_file(fetch_list):
         pickle.dump(fetch_list, dump_file, True)
 
 
-def gv_graph(nxg, filename, node_name=None, fmt='pdf'):
-    # save a dot file to local disk
-    nxd.nx_agraph.write_dot(nxg, "dot/" + filename + '.dot')
-    # convert to pygraphviz agraph object
-    pgv_graph = nxd.nx_agraph.to_agraph(nxg)
-    pgv_graph.graph_attr.update(rankdir="LR")
-    pgv_graph.node_attr.update(fillcolor='green:yellow',
-                               style='filled',
-                               shape='polygon',
-                               # orientation='rotate',
-                               orientation='landscape',
-                               ratio='compress',
-                               fontsize='8',
-                               remincross='true',
-                               concentrate='false',
-                               compound='true',
-                               overlap='false',
-                               rank='source',
-                               constraint='false',
-                               clusterrank='none',
-                               center='false',
-                               imagepos='ml',
-                               decorate='true',
-                               fixedsize='false',
-                               height='.1'
-                               )
-    pgv_graph.edge_attr.update(splines='compound', concentrate='true')
-    if node_name:
-        pgv_graph.add_node(node_name, fillcolor='red:yellow', shape='octagon', style='filled',
-                           # gradientangle='90',
-                           fontsize=10, labeljust='l',
-                           height='.1')
-    else:
-        pLogger.warning("No center node.")
-    pgv_graph.draw("img/" + filename + '.' + fmt, format=fmt, prog='dot')
-
-
-def graph_dot(node_list):
-    # create directed graph
-    # g = nx.MultiDiGraph(day="Friday")
-    g = nx.DiGraph(name='all')
-    pLogger.debug("g.DiGraph is: {!r}".format(g.graph))
-    g.add_edges_from(node_list)
-    # pLogger.debug("g.node : {!r}".format(g.node))
-    # pLogger.debug("g.nodes: {!r}\ng.edges: {!r}".format(g.nodes(), g.edges()))
-    pLogger.debug("nos: {}".format(g.number_of_selfloops()))
-    # dfs
-    return g
-
-
-def ip_port_decide(string):
-    """
-    decide str is a ip:port
-    """
-    re_compile = re.compile(r'(?<![0-9])(?:(?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5])[.](?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5])[.](?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5])[.](?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5]))(?![0-9]):[0-9]{1,5}')
-    try:
-        re_match = re_compile.fullmatch(string)
-        pLogger.debug("ip match: {!r}".format(re_match))
-    except AttributeError:
-        pLogger.debug("{} has no ip:port re compile!!".format(string))
-    else:
-        return re_match
-
-
-def draw_node(graph):
-    g = graph
-    for source_node in g.node:
-        decide_ip_port = ip_port_decide(source_node)
-        if not decide_ip_port:
-            dfs_edges_result = nx_a_t.dfs_edges(g, source=source_node)
-            gr = g.reverse(copy=True)
-            gr_dfs_edges_result = nx_a_t.dfs_edges(gr, source=source_node)
-
-            # gv_graph(gr, filename='gr')
-            follows = list(dfs_edges_result)
-            leaders = list(gr_dfs_edges_result)
-            pLogger.debug("\nfollows type{}: {}\ntype {} leaders: {}".format(
-                type(follows), follows, type(leaders), leaders))
-            gr_new = nx.DiGraph(name='gr')
-            gr_new.add_edges_from(leaders)
-            pLogger.debug(gr_new.graph)
-            g_new = gr_new.reverse(copy=True)
-            g_new.add_edges_from(follows)
-            pLogger.debug(g_new.graph)
-            # draw a graph
-            gv_graph(g_new,
-                     filename=source_node.replace(' ', '-').replace('/', '_').replace('=', ''),
-                     node_name=source_node,
-                     fmt='pdf')
-        else:
-            pLogger.debug("ip:port {!r} match, drop drawing.".format(source_node))
-
-
-def draw_all(graph):
-    gv_graph(graph, filename='all')
-
-
 @spend_time
 @start_end_point(SCRIPT_NAME)
 @script_head
@@ -344,11 +245,10 @@ def main():
         edges_list = fetch_list
         pickle_to_file(edges_list)
     except:
-        traceback.print_exc()
+        traceback.print_exec()
     else:
-        gv = graph_dot(edges_list)
-        draw_node(gv)
-        draw_all(gv)
+        pickle_load = pickle_from_file('fetch_list.bin')
+        draw_from_pickle(pickle_load)
 
 
 if __name__ == "__main__":
