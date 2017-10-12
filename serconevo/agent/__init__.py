@@ -191,6 +191,28 @@ def ps_collect():
 
                             # First, collect all listen ip port to a set.
                             for connection in connections:
+                                """
+                                Here just collect tcp ESTABLISHED and udp
+                                tcp:
+                                psutil.CONN_ESTABLISHED collect
+                                psutil.CONN_SYN_SENT
+                                psutil.CONN_SYN_RECV
+                                psutil.CONN_FIN_WAIT1
+                                psutil.CONN_FIN_WAIT2
+                                psutil.CONN_TIME_WAIT
+                                psutil.CONN_CLOSE
+                                psutil.CONN_CLOSE_WAIT
+                                psutil.CONN_LAST_ACK
+                                psutil.CONN_LISTEN
+                                psutil.CONN_CLOSING
+                                udp&unix socket:
+                                psutil.CONN_NONE
+                                other:
+                                psutil.CONN_DELETE_TCB(Windows)
+                                psutil.CONN_IDLE(Solaris)
+                                psutil.CONN_BOUND(Solaris)
+                                """
+                                # tcp and udp
                                 if connection.status == psutil.CONN_LISTEN \
                                         or (connection.status == psutil.CONN_NONE and not connection.raddr):
                                     pLogger.debug("[{!r}] CONN_LISTEN connection is {!r}".format(
@@ -208,19 +230,24 @@ def ps_collect():
 
                             # Second, collect all connections tag a flag.
                             for connection in connections:
-                                if connection.laddr[1] in process_listen_port:
-                                    flag = 0
+                                if connection.status == psutil.CONN_ESTABLISHED \
+                                        or connection.status == psutil.CONN_NONE:
+                                    if connection.laddr[1] in process_listen_port:
+                                        flag = 0
+                                    else:
+                                        flag = 1
+                                    pLogger.debug("Pid [{!r}] has flag: {!r}".format(
+                                        pid,
+                                        flag)
+                                    )
+                                    process_connection_ip_port.add((connection.laddr, connection.raddr, flag))
+                                    pLogger.debug("Pid [{!r}] has connection: {!r}".format(
+                                        pid,
+                                        connection)
+                                    )
                                 else:
-                                    flag = 1
-                                pLogger.debug("Pid [{!r}] has flag: {!r}".format(
-                                    pid,
-                                    flag)
-                                )
-                                process_connection_ip_port.add((connection.laddr, connection.raddr, flag))
-                                pLogger.debug("Pid [{!r}] has connection: {!r}".format(
-                                    pid,
-                                    connection)
-                                )
+                                    pLogger.debug("connection {!r} with status {!r} don't wanted collect, drop!".format(
+                                        connection, connection.status))
 
                             if process_connection_ip_port:
                                 pLogger.debug("{!r} process_connection_ip_port is"
