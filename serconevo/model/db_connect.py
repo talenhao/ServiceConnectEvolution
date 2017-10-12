@@ -47,6 +47,7 @@ class DbInitConnect(object):
     数据库初始化及连接，游标
     """
     # 初始化基本变量
+
     def __init__(self, config_file=config_file):
         self.python_config_parser = SCEConfigParser(config_file).config_parser()
         try:
@@ -71,8 +72,8 @@ class DbInitConnect(object):
         except configparser.NoOptionError as e:
             exception(e)
         self.connect = self.db_connect()
-        self.sscursor = self.db_sscursor()
-        self.cursor = self.db_cursor()
+        self.ssdictcursor = self.db_sscursor()
+        self.dictcursor = self.db_cursor()
 
     # 连接数据库
     def db_connect(self):
@@ -87,12 +88,12 @@ class DbInitConnect(object):
     # 游标
     def db_sscursor(self):
         # cursor = self.connect.cursor()
-        cursor = pymysql.cursors.SSCursor(self.connect)
+        cursor = pymysql.cursors.SSDictCursor(self.connect)
         return cursor
 
     def db_cursor(self):
         # cursor = self.connect.cursor()
-        cursor = pymysql.cursors.Cursor(self.connect)
+        cursor = pymysql.cursors.DictCursor(self.connect)
         return cursor
 
     def finally_close_all(self):
@@ -100,7 +101,8 @@ class DbInitConnect(object):
         关闭游标，关闭连接。
         :return:
         """
-        self.cursor.close()
+        self.ssdictcursor.close()
+        self.dictcursor.close()
         self.connect.close()
 
     def show_databases(self):

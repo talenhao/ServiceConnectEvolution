@@ -15,12 +15,15 @@ import pickle
 import networkx as nx
 import networkx.algorithms.traversal as nx_a_t
 import networkx.drawing as nxd
-
-from serconevo.model import db_connect
-from serconevo.agent.service_collect_agent import script_head
-from serconevo.agent.service_collect_agent import db_close
-from serconevo.agent.service_collect_agent import spend_time
-from serconevo.agent.service_collect_agent import start_end_point
+# import user modles
+from serconevo.agent import script_head
+from serconevo.agent import db_close
+from serconevo.agent import spend_time
+from serconevo.agent import start_end_point
+from serconevo.agent import identify_line
+from serconevo.agent import connection_table
+from serconevo.agent import config_parser
+from serconevo.agent import db_con
 
 # for log >>
 import logging
@@ -28,20 +31,15 @@ import os
 from serconevo.log4p import log4p
 SCRIPT_NAME = os.path.basename(__file__)
 # log end <<
-
-
 pLogger = log4p.GetLogger(SCRIPT_NAME, logging.DEBUG).get_l()
-
-identify_line = "=*=" * 10
-db_con = db_connect.DbInitConnect()
-config_parser = db_con.python_config_parser
-service_listens_table = config_parser.get("TABLE", "listen_table")
-service_connections_table = config_parser.get("TABLE", "connection_table")
 
 fetch_list = []
 
 
 def match_sort(project, string):
+    """
+    The first 5 fields are intercepted.
+    """
     re_compile = re.compile(r'=(/[-\w]+){1,5}\b')
     re_findall = re_compile.search(string)
     pLogger.debug("re_findall: {!r}".format(re_findall))
@@ -67,11 +65,11 @@ def db_fetchall(sql_cmd, fetch=None):
     # pLogger.info("=====> DB operation command result: {!r}".format(db_con.cursor.rowcount))
     # pdb.set_trace()
     if fetch == 'one':
-        db_con.cursor.execute(sql_cmd)
-        result = db_con.cursor.fetchone()
+        db_con.dictcursor.execute(sql_cmd)
+        result = db_con.dictcursor.fetchone()
     elif fetch == "all":
-        db_con.sscursor.execute(sql_cmd)
-        result = db_con.sscursor.fetchall()
+        db_con.ssdictcursor.execute(sql_cmd)
+        result = db_con.ssdictcursor.fetchall()
     else:
         pLogger.error("fetch argument required.")
         result = None
@@ -109,15 +107,26 @@ def node_match(name, cwd=None, cmdline=None):
         return node
 
 
+def match_nodes(connection_table, r_ip, r_port):
+    # ip node match
+    match_sql_cmd = "select L.l_ip, L.l_port, L.p_cmdline, L.p_cwd, L.p_name "\
+        "FROM {} L where L.l_ip = {!r} and L.l_port = {!r} limit 1".format(
+            connection_table, r_ip, r_port)
+    match_node = db_fetchall(match_sql_cmd, fetch='one')
+    return match_node
+
+
 def connection_process(connection):
     pLogger.info("Run connection_process with PID {!r}".format(os.getpid()))
-    c_c_ip = connection[0]
-    c_c_port = connection[1]
-    c_p_name = connection[2]
-    c_p_cwd = connection[3]
-    c_p_cmdline = connection[4]
-    c_id = connection[5]
-    flag = connection[6]
+#    c_l_ip = connection['l_ip']
+#    c_l_port = connection["l_port"]
+    c_r_ip = connection["r_ip"]
+    c_r_port = connection["r_port"]
+    c_p_name = connection['p_name']
+    c_p_cwd = connection['p_cwd']
+    c_p_cmdline = connection['p_cmdline']
+    c_id = connection['id']
+    flag = connection['flag']
     pLogger.debug("\n{0}\nprocess id {3}"
                   "connection is {1!r}, type: {2!r}, with flag {4!r}, type(flag)=> {5!r}"
                   .format(identify_line,
@@ -128,41 +137,33 @@ def connection_process(connection):
                           type(flag)
                           )
                   )
-    # name_node = ' '.join(eval(c_p_cmdline))  # c.p_cmdline
-    name_node = c_p_cmdline
-    n_result = node_match(c_p_name, cwd=c_p_cwd, cmdline=c_p_cmdline)
+    c_result = node_match(c_p_name, cwd=c_p_cwd, cmdline=c_p_cmdline)
 
-    # ip node convert
-    match_listen_sql_cmd = "select L.l_ip, L.l_port, L.p_cmdline, L.p_cwd, L.p_name from {} L" \
-                           " where L.l_ip = {!r} and L.l_port = {!r} limit 1"\
-        .format(service_listens_table, c_c_ip, c_c_port)
-    match_listen = db_fetchall(match_listen_sql_cmd, fetch='one')
-    pLogger.debug("match_listen_result: {!r}".format(match_listen))
-    if match_listen:
-        pLogger.debug("match_listen is : {}".format(match_listen))
-        # 取出target的程序命令行
-        l_p_cmdline = match_listen[2]
-        l_p_cwd = match_listen[3]
-        l_p_name = match_listen[4]
-        pLogger.debug("target_node: {}, {}, {}".format(l_p_name, l_p_cwd, l_p_cmdline))
-        convert_node = l_p_cmdline
-        c_result = node_match(l_p_name, cwd=l_p_name, cmdline=l_p_cmdline)
+    match_node = match_nodes(connection_table, c_r_ip, c_r_port)
+    if match_node:
+        pLogger.debug("match_node is : {}".format(match_node))
+        m_p_cmdline = match_node['p_cmdline']
+        m_p_cwd = match_node['p_cwd']
+        m_p_name = match_node['p_name']
+        pLogger.debug("match_node: {}, {}, {}".format(m_p_name, m_p_cwd, m_p_cmdline))
+        m_result = node_match(m_p_name, cwd=m_p_name, cmdline=m_p_cmdline)
     else:
-        convert_node = c_c_ip + ':' + c_c_port
-        c_result = convert_node
+        convert_node = c_r_ip + ':' + c_r_port
         pLogger.debug("convert_node with port {!r}".format(convert_node))
-    pLogger.debug("convert_node=>{!r}, c_result=>{!r}".format(convert_node, c_result))
-    if n_result == "drop" or c_result == 'drop':
-        pLogger.warn("process {} has connection {} are not needed, drop.".format(name_node, convert_node))
+        m_result = convert_node
+    pLogger.debug("c_result=>{!r}, m_result=>{!r}".format(c_result, m_result))
+
+    if c_result == "drop" or m_result == 'drop':
+        pLogger.warn("process {} has connection {} are not needed, drop.".format(c_p_name, m_result))
         pLogger.debug("drop item is : {}".format(connection))
         return
     else:
         if flag == 1:
-            from_node = n_result
-            target_node = c_result
-        elif flag == 0:
             from_node = c_result
-            target_node = n_result
+            target_node = m_result
+        elif flag == 0:
+            from_node = m_result
+            target_node = c_result
         else:
             pLogger.error("flag is needed!")
             return
@@ -178,7 +179,6 @@ def fetch_list_process(result_tuple):
         fetch_list.append(result_tuple)
 
 
-@db_close
 def get_relation_list_from_db():
     """
     ip v,port v: connection match listen
@@ -187,14 +187,18 @@ def get_relation_list_from_db():
     ip x,port x: this is a out server
     """
     # has listen program
-    connections_sql_cmd = "SELECT c.c_ip, c.c_port, c.p_name, c.p_cwd, c.p_cmdline, c.p_pid, c.flag " \
-                          "FROM {} c" \
-        .format(service_connections_table)
+    connections_sql_cmd = "SELECT * FROM {}".format(
+        connection_table)
     connections_fetchall = db_fetchall(connections_sql_cmd, fetch='all')
     # pLogger.debug("connections fetch is: {!r}".format(connections_fetchall))
+    return connections_fetchall
+
+
+@db_close
+def process_ralation(connections):
     # pool = multiprocessing.Pool(processes=4)
     now_process_num = 0
-    for con in connections_fetchall:
+    for con in connections:
         now_process_num += 1
         pLogger.info("Now process No. => {!r}".format(now_process_num))
         # pool.apply_async(connection_process, args=(con,), callback=fetch_list_process)
@@ -214,7 +218,7 @@ def pickle_to_file(fetch_list):
         pickle.dump(fetch_list, dump_file, True)
 
 
-def gv_graph(nxg, filename, node_name=None, fmt='png'):
+def gv_graph(nxg, filename, node_name=None, fmt='pdf'):
     # save a dot file to local disk
     nxd.nx_agraph.write_dot(nxg, "dot/" + filename + '.dot')
     # convert to pygraphviz agraph object
@@ -298,7 +302,8 @@ def draw_all(graph):
 @script_head
 def main():
     try:
-        get_relation_list_from_db()
+        connections = get_relation_list_from_db()
+        process_ralation(connections)
         edges_list = fetch_list
         pickle_to_file(edges_list)
     except:
