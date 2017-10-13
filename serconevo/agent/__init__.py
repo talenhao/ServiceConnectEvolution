@@ -142,7 +142,7 @@ def get_host_ip():
                     ip_set.add(addr.address)
                 else:
                     pLogger.warn("{!r} is not a INET address".format(addr))
-    pLogger.debug("ip_set = {!r}".format(ip_set))
+    pLogger.debug("ip_set = {!r}, type {!r}".format(ip_set, type(ip_set)))
     return ip_set
 
 
@@ -269,17 +269,22 @@ def ps_collect():
                                     if raddr:
                                         r_ip, r_port = raddr
                                         r_ip = convert_ipv6_ipv4(r_ip)
+                                        l_ip_set = set()
+                                        l_ip_set.add(l_ip)
                                     else:
                                         r_ip = None
                                         r_port = None
-                                        l_ip = server_ip
-                                    pLogger.debug("l_ip, l_port, r_ip, r_port is {!r}, {!r}, {!r}, {!r}".format(
-                                        l_ip, l_port, r_ip, r_port))
-                                    for l_ip_address in l_ip:
-                                        import2db(connection_table, l_ip_address, l_port, r_ip, r_port,
-                                                  name, pid, exe, cwd, cmdline, status, create_time, username,
-                                                  server_uuid, local_ip=server_ip, flag=flag
+                                        l_ip_set = server_ip
+                                    pLogger.debug("l_ip, l_port, r_ip, r_port is {!r}, {!r}, {!r}, {!r}, "
+                                                  "l_ip_set is {!r}".format(
+                                                      l_ip, l_port, r_ip, r_port, l_ip_set)
                                                   )
+                                    if isinstance(l_ip_set, set):
+                                        for l_ip_address in l_ip_set:
+                                            import2db(connection_table, l_ip_address, l_port, r_ip, r_port,
+                                                      name, pid, exe, cwd, cmdline, status, create_time, username,
+                                                      server_uuid, local_ip=server_ip, flag=flag
+                                                      )
                             else:
                                 pLogger.debug(
                                     "process_connection_ip_port is empty!")
