@@ -260,7 +260,9 @@ def ps_collect():
                                         flag)
                                     )
                                     # to determine connected status.
-                                    if connection.raddr is not None:
+                                    pLogger.debug("connection.raddr : {!r}, len {!r}, type: {!r}".format(
+                                        connection.raddr, len(connection.raddr), type(connection.raddr)))
+                                    if connection.raddr:
                                         laddr_connected = detect_socket(connection.raddr[0], connection.raddr[1])
                                         if laddr_connected == "fail":
                                             pLogger.debug("ESTABLISHED {!r} is interupted.".format(connection.raddr))
@@ -318,7 +320,7 @@ def ps_collect():
             else:
                 pLogger.debug(
                     "process {} is already not exist!".format(process.pid))
-            pLogger.debug("\nPorcesses [{1}] end to process.\n{0}".format(
+            pLogger.debug("\nPorcesses [{1}] end to process. {0}".format(
                 identify_line, process.pid))
     except psutil.AccessDenied:
         pLogger.exception("用户权限不足.")
