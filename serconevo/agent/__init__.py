@@ -169,11 +169,54 @@ def convert_ipv6_ipv4(ipv6):
     return ip
 
 
+def listen_ports_collect(process, connections):
+    """
+    collect all listen ports.
+    Here just collect tcp ESTABLISHED and udp
+    tcp:
+    psutil.CONN_ESTABLISHED collect
+    psutil.CONN_SYN_SENT
+    psutil.CONN_SYN_RECV
+    psutil.CONN_FIN_WAIT1
+    psutil.CONN_FIN_WAIT2
+    psutil.CONN_TIME_WAIT
+    psutil.CONN_CLOSE
+    psutil.CONN_CLOSE_WAIT
+    psutil.CONN_LAST_ACK
+    psutil.CONN_LISTEN
+    psutil.CONN_CLOSING
+    udp&unix socket:
+    psutil.CONN_NONE
+    other:
+    psutil.CONN_DELETE_TCB(Windows)
+    psutil.CONN_IDLE(Solaris)
+    psutil.CONN_BOUND(Solaris)
+    """
+    listen_ports = set()
+    # First, collect all listen ip port to a set.
+    for connection in connections:
+        # tcp
+        if connection.status == psutil.CONN_LISTEN:
+                # or (connection.status == psutil.CONN_NONE and not connection.raddr)\
+            pLogger.debug("[{!r}] CONN_LISTEN connection is {!r}".format(
+                process.pid, connection))
+            listen_ports.add(
+                connection.laddr[1])
+            pLogger.debug("[{}] connection.laddr is {!r}".format(
+                process.pid, connection.laddr))
+        # none LISTENS process
+        # else:
+        #     pLogger.debug(
+        #         "{!r} is not LISTEN connection!".format(connection))
+    return listen_ports
+
+
 def ps_collect():
     # get bind ip for this server.
     server_ip = get_host_ip()
     # listen_ip_list = server_ip
     server_uuid = get_server_uuid()
+    listen_ports = []
     # 直接使用process_iter()迭代实例化每个进程.
     try:
         for process in psutil.process_iter():
@@ -181,11 +224,11 @@ def ps_collect():
                 identify_line,
                 process.pid)
             )
-            # 判断进程是否还在运行.
+            # detect process is running.
             if process.is_running():
+                # salt-minion with different pid but use the same socket.
+                process_listen_port_processed = []
                 pid = process.pid
-                process_listen_port = set()
-                process_connection_ip_port = set()
                 # 一次性抓取运行快照
                 with process.oneshot():
                     # 连接信息
@@ -206,59 +249,25 @@ def ps_collect():
                             pLogger.debug(
                                 "{!r} create_time is {!r}".format(pid, create_time))
                             username = process.username()
-
-                            # First, collect all listen ip port to a set.
-                            for connection in connections:
-                                """
-                                Here just collect tcp ESTABLISHED and udp
-                                tcp:
-                                psutil.CONN_ESTABLISHED collect
-                                psutil.CONN_SYN_SENT
-                                psutil.CONN_SYN_RECV
-                                psutil.CONN_FIN_WAIT1
-                                psutil.CONN_FIN_WAIT2
-                                psutil.CONN_TIME_WAIT
-                                psutil.CONN_CLOSE
-                                psutil.CONN_CLOSE_WAIT
-                                psutil.CONN_LAST_ACK
-                                psutil.CONN_LISTEN
-                                psutil.CONN_CLOSING
-                                udp&unix socket:
-                                psutil.CONN_NONE
-                                other:
-                                psutil.CONN_DELETE_TCB(Windows)
-                                psutil.CONN_IDLE(Solaris)
-                                psutil.CONN_BOUND(Solaris)
-                                """
-                                # tcp
-                                if connection.status == psutil.CONN_LISTEN:
-                                        # or (connection.status == psutil.CONN_NONE and not connection.raddr)\
-                                    pLogger.debug("[{!r}] CONN_LISTEN connection is {!r}".format(
-                                        process.pid, connection))
-                                    process_listen_port.add(
-                                        connection.laddr[1])
-                                    pLogger.debug("[{}] connection.laddr is {!r}".format(
-                                        process.pid, connection.laddr))
-                                # none LISTENS process
-                                else:
-                                    pLogger.debug(
-                                        "{!r} is not LISTEN connection!".format(connection))
-                            pLogger.debug("process_listen_port is : {}".format(
-                                process_listen_port))
+                            process_listen_port = listen_ports_collect(process, connections)
+                            pLogger.debug("process_listen_port is : {} , listen_ports is {!r}===========>".format(
+                                process_listen_port, set(listen_ports)))
 
                             # Second, collect all connections tag a flag.
                             for connection in connections:
+                                pLogger.debug("Pid [{!r}] has connection: {!r} >>>>>>>>>>>".format(
+                                    pid,
+                                    connection)
+                                )
+                                if connection.laddr[1] in process_listen_port_processed:
+                                    pLogger.debug("Duplicate ipv6 or ipv4 listen port, drop it."
+                                                  " process_listen_port_processed is {!r}".format(
+                                                      process_listen_port_processed)
+                                                  )
+                                    continue
                                 if connection.status == psutil.CONN_ESTABLISHED \
                                         or connection.status == psutil.CONN_LISTEN:
                                         # or connection.status == psutil.CONN_NONE \
-                                    if connection.laddr[1] in process_listen_port:
-                                        flag = 0
-                                    else:
-                                        flag = 1
-                                    pLogger.debug("Pid [{!r}] has flag: {!r}".format(
-                                        pid,
-                                        flag)
-                                    )
                                     # to determine connected status.
                                     pLogger.debug("connection.raddr : {!r}, len {!r}, type: {!r}".format(
                                         connection.raddr, len(connection.raddr), type(connection.raddr)))
@@ -269,24 +278,20 @@ def ps_collect():
                                             continue
                                         elif laddr_connected == 'ok':
                                             pLogger.debug("ESTABLISHED {!r} is connected.".format(connection.raddr))
-                                    process_connection_ip_port.add((connection.laddr, connection.raddr, flag))
-                                    pLogger.debug("Pid [{!r}] has connection: {!r}".format(
+                                    if connection.laddr[1] in listen_ports:
+                                        pLogger.debug("Duplicate listening port {!r}, drop.".format(connection))
+                                        continue
+                                    if connection.laddr[1] in process_listen_port:
+                                        flag = 0
+                                    else:
+                                        flag = 1
+                                    pLogger.debug("Pid [{!r}] has flag: {!r}".format(
                                         pid,
-                                        connection)
+                                        flag)
                                     )
-                                else:
-                                    pLogger.debug("connection {!r} with status {!r} don't wanted collect, drop!".format(
-                                        connection, connection.status))
 
-                            if process_connection_ip_port:
-                                pLogger.debug("{!r} process_connection_ip_port is"
-                                              " {!r}".format(
-                                                  pid,
-                                                  process_connection_ip_port)
-                                              )
-                                for connection_addr in process_connection_ip_port:
-                                    pLogger.debug("connection_addr is {!r}".format(connection_addr))
-                                    laddr, raddr, flag = connection_addr
+                                    # insert to db
+                                    laddr, raddr, flag = connection.laddr, connection.raddr, flag
                                     pLogger.debug("laddr, raddr, flag is {!r}, {!r}, {!r}".format(laddr, raddr, flag))
                                     # ip to ipv4
                                     l_ip, l_port = laddr
@@ -300,6 +305,7 @@ def ps_collect():
                                         r_ip = None
                                         r_port = None
                                         l_ip_set = server_ip
+                                        process_listen_port_processed.append(l_port)
                                     pLogger.debug("l_ip, l_port, r_ip, r_port is {!r}, {!r}, {!r}, {!r}, "
                                                   "l_ip_set is {!r}".format(
                                                       l_ip, l_port, r_ip, r_port, l_ip_set)
@@ -310,9 +316,11 @@ def ps_collect():
                                                       name, pid, exe, cwd, cmdline, status, create_time, username,
                                                       server_uuid, local_ip=server_ip, flag=flag
                                                       )
-                            else:
-                                pLogger.debug(
-                                    "process_connection_ip_port is empty!")
+                                else:
+                                    pLogger.debug("connection {!r} with status {!r} don't wanted collect, drop!".format(
+                                        connection, connection.status))
+                                if process_listen_port:
+                                    listen_ports.extend(list(process_listen_port))
                         else:
                             pLogger.debug("{} has no connections.".format(pid))
                     except psutil.NoSuchProcess as e:
@@ -320,7 +328,7 @@ def ps_collect():
             else:
                 pLogger.debug(
                     "process {} is already not exist!".format(process.pid))
-            pLogger.debug("\nPorcesses [{1}] end to process. {0}".format(
+            pLogger.debug("Porcesses [{1}] end to process. {0}".format(
                 identify_line, process.pid))
     except psutil.AccessDenied:
         pLogger.exception("用户权限不足.")
@@ -378,9 +386,8 @@ def import2db(table, l_ip, l_port, r_ip, r_port, p_name, p_pid, p_exe, p_cwd, p_
     pLogger.debug("sql_format_str is : {!r}".format(sql_format_str))
     sql_cmd = sql_format_str.format(
         table, columns_list_process, values_list)
-    pLogger.debug("_sql is : {!r}".format(sql_cmd))
-    pLogger.debug(
-        "{} insert database operation command: {}".format(p_exe, sql_cmd))
+    # pLogger.debug("_sql is : {!r}".format(sql_cmd))
+    # pLogger.debug("{} insert database operation command: {}".format(p_exe, sql_cmd))
     return sql_cmd
 
 
