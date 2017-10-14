@@ -13,11 +13,12 @@ __version__ = __last_date__
 
 # builtin
 import re
-import uuid
 import sys
+import uuid
 import getopt
-import datetime
 import psutil
+import socket
+import datetime
 
 # user module
 from serconevo.model import db_connect
@@ -66,7 +67,7 @@ def script_head(func):
         if sys.version_info < (3, 4):
             pLogger.warning('友情提示：当前系统版本低于3.4，请升级python版本。')
             raise RuntimeError('At least Python 3.4 is required')
-        pLogger.info("Script version: {!r}".format(__version__))
+        pLogger.debug("Script version: {!r}".format(__version__))
         return func(*args, **kwargs)
     return warper
 
@@ -78,7 +79,7 @@ def db_commit(func):
         sql_cmd = func(*args, **kwargs)
         pLogger.debug("SQL_CMD is =====> {!r}  __________".format(sql_cmd))
         db_con.dictcursor.execute(sql_cmd)
-        pLogger.info("=====> DB operation command result: {!r}".format(
+        pLogger.info("==> DB operation command result: {!r}".format(
             db_con.dictcursor.rowcount))
         db_con.connect.commit()
     return warper
@@ -95,10 +96,10 @@ def db_close(func):
 def spend_time(func):
     def warper(*args, **kwargs):
         start_time = datetime.datetime.now()
-        pLogger.debug("Time start %s", start_time)
+        pLogger.info("Time start %s", start_time)
         func(*args, **kwargs)
         end_time = datetime.datetime.now()
-        pLogger.debug("Time over %s,spend %s", end_time, end_time - start_time)
+        pLogger.info("Time over %s,spend %s", end_time, end_time - start_time)
     return warper
 
 
@@ -130,7 +131,7 @@ def get_host_ip():
     for i_face, addrs in nia.items():
         pLogger.debug("i_face is {}".format(i_face))
         if i_face == 'lo':
-            pLogger.warn("{!r} is loop address ".format(i_face))
+            pLogger.debug("{!r} is loop address ".format(i_face))
             continue
         else:
             for addr in addrs:
@@ -141,9 +142,23 @@ def get_host_ip():
                     pLogger.debug('get ip {}'.format(addr.address))
                     ip_set.add(addr.address)
                 else:
-                    pLogger.warn("{!r} is not a INET address".format(addr))
+                    pLogger.debug("{!r} is not a INET address".format(addr))
     pLogger.debug("ip_set = {!r}, type {!r}".format(ip_set, type(ip_set)))
     return ip_set
+
+
+def detect_socket(ip, port):
+    try:
+        s = socket.create_connection((ip, port))
+        pLogger.debug('connection {!r}:{!r} test ok.'.format(ip, port))
+        status = 'ok'
+    except Exception as e:
+        pLogger.debug("connection {!r}:{!r} deaded".format(ip, port))
+        status = 'fail'
+    else:
+        s.close()
+    finally:
+        return status
 
 
 def convert_ipv6_ipv4(ipv6):
@@ -215,9 +230,9 @@ def ps_collect():
                                 psutil.CONN_IDLE(Solaris)
                                 psutil.CONN_BOUND(Solaris)
                                 """
-                                # tcp and udp
-                                if connection.status == psutil.CONN_LISTEN \
-                                        or (connection.status == psutil.CONN_NONE and not connection.raddr):
+                                # tcp
+                                if connection.status == psutil.CONN_LISTEN:
+                                        # or (connection.status == psutil.CONN_NONE and not connection.raddr)\
                                     pLogger.debug("[{!r}] CONN_LISTEN connection is {!r}".format(
                                         process.pid, connection))
                                     process_listen_port.add(
@@ -228,14 +243,14 @@ def ps_collect():
                                 else:
                                     pLogger.debug(
                                         "{!r} is not LISTEN connection!".format(connection))
-                            pLogger.info("process_listen_port is : {}".format(
+                            pLogger.debug("process_listen_port is : {}".format(
                                 process_listen_port))
 
                             # Second, collect all connections tag a flag.
                             for connection in connections:
                                 if connection.status == psutil.CONN_ESTABLISHED \
-                                        or connection.status == psutil.CONN_NONE \
                                         or connection.status == psutil.CONN_LISTEN:
+                                        # or connection.status == psutil.CONN_NONE \
                                     if connection.laddr[1] in process_listen_port:
                                         flag = 0
                                     else:
@@ -244,6 +259,14 @@ def ps_collect():
                                         pid,
                                         flag)
                                     )
+                                    # to determine connected status.
+                                    if connection.raddr is not None:
+                                        laddr_connected = detect_socket(connection.raddr[0], connection.raddr[1])
+                                        if laddr_connected == "fail":
+                                            pLogger.debug("ESTABLISHED {!r} is interupted.".format(connection.raddr))
+                                            continue
+                                        elif laddr_connected == 'ok':
+                                            pLogger.debug("ESTABLISHED {!r} is connected.".format(connection.raddr))
                                     process_connection_ip_port.add((connection.laddr, connection.raddr, flag))
                                     pLogger.debug("Pid [{!r}] has connection: {!r}".format(
                                         pid,
@@ -372,7 +395,7 @@ def reset_local_db_info(table_name, column_name):
     sql_like_pattern = sql_like_string.format(server_uuid)
     pLogger.debug("sql_like_pattern: {}".format(sql_like_pattern))
     sql_cmd = "DELETE FROM %s WHERE %s" % (table_name, sql_like_pattern)
-    pLogger.info("{} truncate database table operation: {}".format(
+    pLogger.debug("{} truncate database table operation: {}".format(
         table_name, sql_cmd))
     return sql_cmd
 
