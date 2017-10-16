@@ -19,11 +19,12 @@
         },
 
         "debug_file_handler": {
-            "class": "logging.handlers.RotatingFileHandler",
+            "class": "logging.handlers.TimedRotatingFileHandler",
             "level": "DEBUG",
             "formatter": "detail",
-            "filename": "debug.log",
-            "maxBytes": 1048576000,
+            "filename": "/tmp/debug.log",
+            "when": "H",
+            "interval": 1,
             "backupCount": 5,
             "encoding": "utf8"
         },
@@ -32,9 +33,9 @@
             "class": "logging.handlers.RotatingFileHandler",
             "level": "ERROR",
             "formatter": "detail",
-            "filename": "errors.log",
+            "filename": "/tmp/errors.log",
             "maxBytes": 10485760,
-            "backupCount": 20,
+            "backupCount": 2,
             "encoding": "utf8"
         }
     },
