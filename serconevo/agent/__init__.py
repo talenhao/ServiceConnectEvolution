@@ -152,8 +152,8 @@ def detect_socket(ip, port):
         s = socket.create_connection((ip, port))
         pLogger.debug('connection {!r}:{!r} test ok.'.format(ip, port))
         status = 'ok'
-    except Exception as e:
-        pLogger.debug("connection {!r}:{!r} deaded".format(ip, port))
+    except Exception:
+        pLogger.debug("connection {!r}:{!r} has interupted".format(ip, port))
         status = 'fail'
     else:
         s.close()
@@ -227,7 +227,7 @@ def ps_collect():
             # detect process is running.
             if process.is_running():
                 # salt-minion with different pid but use the same socket.
-                process_listen_port_processed = []
+                process_listen_port_processed = set()
                 pid = process.pid
                 # 一次性抓取运行快照
                 with process.oneshot():
@@ -250,8 +250,6 @@ def ps_collect():
                                 "{!r} create_time is {!r}".format(pid, create_time))
                             username = process.username()
                             process_listen_port = listen_ports_collect(process, connections)
-                            pLogger.debug("process_listen_port is : {} , listen_ports is {!r}===========>".format(
-                                process_listen_port, set(listen_ports)))
 
                             # Second, collect all connections tag a flag.
                             for connection in connections:
@@ -259,68 +257,74 @@ def ps_collect():
                                     pid,
                                     connection)
                                 )
-                                if connection.laddr[1] in process_listen_port_processed:
-                                    pLogger.debug("Duplicate ipv6 or ipv4 listen port, drop it."
-                                                  " process_listen_port_processed is {!r}".format(
-                                                      process_listen_port_processed)
-                                                  )
-                                    continue
-                                if connection.status == psutil.CONN_ESTABLISHED \
-                                        or connection.status == psutil.CONN_LISTEN:
-                                        # or connection.status == psutil.CONN_NONE \
-                                    # to determine connected status.
-                                    pLogger.debug("connection.raddr : {!r}, len {!r}, type: {!r}".format(
-                                        connection.raddr, len(connection.raddr), type(connection.raddr)))
-                                    if connection.raddr:
-                                        laddr_connected = detect_socket(connection.raddr[0], connection.raddr[1])
-                                        if laddr_connected == "fail":
-                                            pLogger.debug("ESTABLISHED {!r} is interupted.".format(connection.raddr))
-                                            continue
-                                        elif laddr_connected == 'ok':
-                                            pLogger.debug("ESTABLISHED {!r} is connected.".format(connection.raddr))
+                                laddr, raddr = connection.laddr, connection.raddr
+                                pLogger.debug("laddr, raddr is {!r}, {!r}".format(laddr, raddr))
+                                # ip to ipv4
+                                l_ip, l_port = laddr
+                                l_ip = convert_ipv6_ipv4(l_ip)
+
+                                if connection.status == psutil.CONN_LISTEN:
+                                    pLogger.debug("process_listen_port is : {} , listen_ports is {!r}====>".format(
+                                        process_listen_port, set(listen_ports)))
+
+                                    # exclude other process have the same listening port.
                                     if connection.laddr[1] in listen_ports:
                                         pLogger.debug("Duplicate listening port {!r}, drop.".format(connection))
                                         continue
-                                    if connection.laddr[1] in process_listen_port:
-                                        flag = 0
+                                    # exclude one process listening on ipv4 and ipv6
+                                    elif connection.laddr[1] in process_listen_port_processed:
+                                        pLogger.debug("Duplicate ipv6 or ipv4 listen port, drop it."
+                                                      " process_listen_port_processed is {!r}".format(
+                                                          process_listen_port_processed)
+                                                      )
+                                        continue
                                     else:
-                                        flag = 1
-                                    pLogger.debug("Pid [{!r}] has flag: {!r}".format(
-                                        pid,
-                                        flag)
-                                    )
-
-                                    # insert to db
-                                    laddr, raddr, flag = connection.laddr, connection.raddr, flag
-                                    pLogger.debug("laddr, raddr, flag is {!r}, {!r}, {!r}".format(laddr, raddr, flag))
-                                    # ip to ipv4
-                                    l_ip, l_port = laddr
-                                    l_ip = convert_ipv6_ipv4(l_ip)
-                                    if raddr:
+                                        flag = 0
+                                        r_ip = None
+                                        r_port = None
+                                        l_ip_set = server_ip
+                                        process_listen_port_processed.add(l_port)
+                                        pLogger.debug("append listen port {} to process_listen_port_processed".format(
+                                            l_port)
+                                        )
+                                        if process_listen_port:
+                                            listen_ports.extend(list(process_listen_port))
+                                            listen_ports = list(set(listen_ports))
+                                elif connection.status == psutil.CONN_ESTABLISHED:
+                                    laddr_connected = detect_socket(connection.raddr[0], connection.raddr[1])
+                                    if laddr_connected == "fail":
+                                        # pLogger.debug("ESTABLISHED {!r} is interupted.".format(connection.raddr))
+                                        continue
+                                    elif laddr_connected == 'ok':
+                                        # pLogger.debug("ESTABLISHED {!r} is connected.".format(connection.raddr))
+                                        # connection direction, 0 reverse, 1 positive
+                                        if connection.laddr[1] in process_listen_port:
+                                            flag = 0
+                                        else:
+                                            flag = 1
+                                        pLogger.debug("Pid [{!r}] has flag: {!r}".format(
+                                            pid,
+                                            flag)
+                                        )
                                         r_ip, r_port = raddr
                                         r_ip = convert_ipv6_ipv4(r_ip)
                                         l_ip_set = set()
                                         l_ip_set.add(l_ip)
-                                    else:
-                                        r_ip = None
-                                        r_port = None
-                                        l_ip_set = server_ip
-                                        process_listen_port_processed.append(l_port)
-                                    pLogger.debug("l_ip, l_port, r_ip, r_port is {!r}, {!r}, {!r}, {!r}, "
-                                                  "l_ip_set is {!r}".format(
-                                                      l_ip, l_port, r_ip, r_port, l_ip_set)
-                                                  )
-                                    if isinstance(l_ip_set, set):
-                                        for l_ip_address in l_ip_set:
-                                            import2db(connection_table, l_ip_address, l_port, r_ip, r_port,
-                                                      name, pid, exe, cwd, cmdline, status, create_time, username,
-                                                      server_uuid, local_ip=server_ip, flag=flag
-                                                      )
                                 else:
                                     pLogger.debug("connection {!r} with status {!r} don't wanted collect, drop!".format(
                                         connection, connection.status))
-                                if process_listen_port:
-                                    listen_ports.extend(list(process_listen_port))
+                                    continue
+                                pLogger.debug("l_ip, l_port, r_ip, r_port is {!r}, {!r}, {!r}, {!r}, "
+                                              "l_ip_set is {!r}".format(
+                                                  l_ip, l_port, r_ip, r_port, l_ip_set)
+                                              )
+                                if isinstance(l_ip_set, set):
+                                    for l_ip_address in l_ip_set:
+                                        import2db(connection_table, l_ip_address, l_port, r_ip, r_port,
+                                                  name, pid, exe, cwd, cmdline, status, create_time, username,
+                                                  server_uuid, local_ip=server_ip, flag=flag
+                                                  )
+
                         else:
                             pLogger.debug("{} has no connections.".format(pid))
                     except psutil.NoSuchProcess as e:
@@ -355,7 +359,7 @@ def process_before_insert_db(string):
                 string[arg] = re.sub(rcm_data, 'dataX/', string[arg])
             if rcm_solr.search(string[arg]):
                 string[arg] = re.sub(rcm_solr, 'solrX/', string[arg])
-    except:
+    except Exception:
         pLogger.error("There has some error when convert {}.".format(string))
         exit()
 
@@ -371,19 +375,19 @@ def import2db(table, l_ip, l_port, r_ip, r_port, p_name, p_pid, p_exe, p_cwd, p_
     values_list = [l_ip, l_port, r_ip, r_port, p_name, p_pid, p_exe,
                    p_cwd, p_cmdline, p_status, p_create_time, p_username,
                    server_uuid, local_ip, flag]
-    pLogger.debug("columns_list_process is {}, values_list is {}".format(
-        columns_list_process, values_list))
+    # pLogger.debug("columns_list_process is {}, values_list is {}".format(
+    #     columns_list_process, values_list))
 
     # 2 SQL create
     columns_str = ','.join(
         ['{1' + str([i]) + '}' for i in range(len(columns_list_process))])
     values_str = ",".join(
         ['"{2' + str([i]) + '}"' for i in range(len(values_list))])
-    pLogger.debug("columns_str is : {!r}, values_str is : {!r} .".format(
-        columns_str, values_str))
+    # pLogger.debug("columns_str is : {!r}, values_str is : {!r} .".format(
+    #     columns_str, values_str))
     sql_format_str = 'INSERT ignore INTO {0} (' + \
         columns_str + ') VALUES (' + values_str + ')'
-    pLogger.debug("sql_format_str is : {!r}".format(sql_format_str))
+    # pLogger.debug("sql_format_str is : {!r}".format(sql_format_str))
     sql_cmd = sql_format_str.format(
         table, columns_list_process, values_list)
     # pLogger.debug("_sql is : {!r}".format(sql_cmd))
