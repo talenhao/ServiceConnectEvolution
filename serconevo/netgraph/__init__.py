@@ -10,7 +10,7 @@
 
 import traceback
 import re
-import pdb
+# import pdb
 # import time
 import pickle
 
@@ -22,8 +22,10 @@ from serconevo.agent import start_end_point
 from serconevo import identify_line
 from serconevo.agent import connection_table
 from serconevo.agent import db_con
-from serconevo.netgraph.drawgraph import draw_from_pickle
-from serconevo.netgraph.drawgraph import pickle_from_file
+from serconevo.netgraph.drawgraph import netgraph_path
+from serconevo.netgraph.drawgraph import work_dir
+from serconevo.netgraph.drawgraph import load_draw
+
 # for log >>
 import logging
 import os
@@ -84,7 +86,7 @@ def node_match(name, cwd=None, cmdline=None):
     :param cmdline:
     :return:
     """
-    drop_list = ['ssh', 'sshd', 'whois', 'sshd']
+    drop_list = ['ssh', 'sshd', 'whois', 'sshd', 'salt-minion', 'salt-master']
 #    from_drop_list = ['ssh', 'sshd', 'whois']
 #    target_drop_list = ['sshd']
 #    if flag == 'f':
@@ -131,19 +133,20 @@ def connection_process(connection):
 
     """
     c_r_ip = connection["r_ip"]
-    if c_r_ip == 'None':
+    c_r_port = connection["r_port"]
+
+    if c_r_ip == 'None' or c_r_ip is None or c_r_ip == ' ':
         return
     else:
         # c_l_ip = connection['l_ip']
         # c_l_port = connection["l_port"]
-        c_r_port = connection["r_port"]
         c_p_name = connection['p_name']
         c_p_cwd = connection['p_cwd']
         c_p_cmdline = connection['p_cmdline']
         c_id = connection['id']
         flag = connection['flag']
         c_server_uuid = connection['server_uuid']
-        pLogger.debug("\n{0}\nprocess id {3}"
+        pLogger.debug("\n{0}\nprocess id: {3} "
                       "connection is {1!r}, type: {2!r}, with flag {4!r}, type(flag)=> {5!r}"
                       .format(identify_line,
                               connection,
@@ -162,7 +165,7 @@ def connection_process(connection):
             m_p_cwd = match_node['p_cwd']
             m_p_name = match_node['p_name']
             pLogger.debug("match_node: {}, {}, {}".format(m_p_name, m_p_cwd, m_p_cmdline))
-            m_result = node_match(m_p_name, cwd=m_p_name, cmdline=m_p_cmdline)
+            m_result = node_match(m_p_name, cwd=m_p_cwd, cmdline=m_p_cmdline)
         else:
             convert_node = c_r_ip + ':' + c_r_port
             pLogger.debug("convert_node with port {!r}".format(convert_node))
@@ -231,7 +234,10 @@ def pickle_to_file(fetch_list):
     pLogger.debug("{}\n\
                   fetch_list is: \n\
                   {!r}".format(identify_line, fetch_list))
-    with open('fetch_list.bin', 'wb') as dump_file:
+    if not os.path.exists(work_dir):
+        pLogger.debug("work_dir {} is not exists, create it.".format(work_dir))
+        os.makedirs(work_dir)
+    with open(netgraph_path, 'wb') as dump_file:
         pickle.dump(fetch_list, dump_file, True)
 
 
@@ -242,13 +248,13 @@ def main():
     try:
         connections = get_relation_list_from_db()
         process_ralation(connections)
-        edges_list = fetch_list
+        edges_list = list(set(fetch_list))
+        pLogger.info("edges_list len {!r}".format(len(edges_list)))
         pickle_to_file(edges_list)
-    except:
-        traceback.print_exec()
+    except Exception:
+        traceback.print_exc()
     else:
-        pickle_load = pickle_from_file('fetch_list.bin')
-        draw_from_pickle(pickle_load)
+        load_draw()
 
 
 if __name__ == "__main__":

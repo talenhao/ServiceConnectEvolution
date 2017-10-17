@@ -6,6 +6,7 @@
 # @Version : $Id$
 
 import re
+import shutil
 import pickle
 import multiprocessing
 import networkx as nx
@@ -21,6 +22,8 @@ from serconevo.log4p import log4p
 SCRIPT_NAME = os.path.basename(__file__)
 # log end <<
 pLogger = log4p.GetLogger(SCRIPT_NAME, logging.DEBUG).get_l()
+netgraph_path = "/tmp/netgraph/fetch_list.bin"
+work_dir = os.path.dirname(netgraph_path)
 
 
 def pickle_from_file(pickle_file):
@@ -32,7 +35,7 @@ def pickle_from_file(pickle_file):
 
 def gv_graph(nxg, filename, node_name=None, fmt='pdf'):
     # save a dot file to local disk
-    nxd.nx_agraph.write_dot(nxg, "dot/" + filename + '.dot')
+    nxd.nx_agraph.write_dot(nxg, work_dir + "/" + filename + '.dot')
     # convert to pygraphviz agraph object
     pgv_graph = nxd.nx_agraph.to_agraph(nxg)
     pgv_graph.graph_attr.update(rankdir="LR")
@@ -64,7 +67,7 @@ def gv_graph(nxg, filename, node_name=None, fmt='pdf'):
                            height='.1')
     else:
         pLogger.warning("No center node.")
-    pgv_graph.draw("img/" + filename + '.' + fmt, format=fmt, prog='dot')
+    pgv_graph.draw(work_dir + "/" + filename + '.' + fmt, format=fmt, prog='dot')
 
 
 def graph_dot(node_list):
@@ -158,13 +161,24 @@ def draw_all(graph):
 
 def draw_from_pickle(pickle_load):
     gv = graph_dot(pickle_load)
-    # traversal_nodes(gv)
+    traversal_nodes(gv)
     draw_all(gv)
 
 
-def main():
-    pickle_load = pickle_from_file('fetch_list.bin')
+def load_draw():
+    imgs_dir = work_dir + 'imgs'
+    if not os.path.exists(imgs_dir):
+        os.makedirs(imgs_dir)
+        pLogger.debug("imgs_dir {} not exists, create it.".format(imgs_dir))
+    elif os.listdir(imgs_dir):
+        shutil.rmtree(imgs_dir)
+        pLogger.debug("imgs_dir {} is not empty, to clean it.".format(imgs_dir))
+    pickle_load = pickle_from_file(netgraph_path)
     draw_from_pickle(pickle_load)
+
+
+def main():
+    load_draw()
 
 
 if __name__ == '__main__':
