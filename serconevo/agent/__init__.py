@@ -192,15 +192,16 @@ def listen_ports_collect(process, connections):
     psutil.CONN_IDLE(Solaris)
     psutil.CONN_BOUND(Solaris)
     """
-    listen_ports = set()
+    listen_ports_set = set()
     # First, collect all listen ip port to a set.
+    pLogger.debug("First, collect all listen ip port to a set.")
     for connection in connections:
         # tcp
         if connection.status == psutil.CONN_LISTEN:
                 # or (connection.status == psutil.CONN_NONE and not connection.raddr)\
             pLogger.debug("[{!r}] CONN_LISTEN connection is {!r}".format(
                 process.pid, connection))
-            listen_ports.add(
+            listen_ports_set.add(
                 connection.laddr[1])
             pLogger.debug("[{}] connection.laddr is {!r}".format(
                 process.pid, connection.laddr))
@@ -208,7 +209,9 @@ def listen_ports_collect(process, connections):
         # else:
         #     pLogger.debug(
         #         "{!r} is not LISTEN connection!".format(connection))
-    return listen_ports
+    pLogger.debug('listen_ports_set : {}'.format(listen_ports_collect))
+    pLogger.debug("End, collect all listen ip port to a set.")
+    return listen_ports_set
 
 
 def ps_collect():
@@ -220,7 +223,7 @@ def ps_collect():
     # 直接使用process_iter()迭代实例化每个进程.
     try:
         for process in psutil.process_iter():
-            pLogger.debug("{}\nPID [{}] begin to process.".format(
+            pLogger.debug("{}\n\nPID [{}] begin to process.".format(
                 identify_line,
                 process.pid)
             )
@@ -249,11 +252,13 @@ def ps_collect():
                             pLogger.debug(
                                 "{!r} create_time is {!r}".format(pid, create_time))
                             username = process.username()
+                            # collect all listen ports with this process.
                             process_listen_port = listen_ports_collect(process, connections)
 
                             # Second, collect all connections tag a flag.
+                            pLogger.debug('Second, collect all connections tag a flag.____________________')
                             for connection in connections:
-                                pLogger.debug("Pid [{!r}] has connection: {!r} >>>>>>>>>>>".format(
+                                pLogger.debug("Pid [{!r}] has connection: {!r}.\n".format(
                                     pid,
                                     connection)
                                 )
@@ -264,8 +269,14 @@ def ps_collect():
                                 l_ip = convert_ipv6_ipv4(l_ip)
 
                                 if connection.status == psutil.CONN_LISTEN:
-                                    pLogger.debug("process_listen_port is : {} , listen_ports is {!r}====>".format(
-                                        process_listen_port, set(listen_ports)))
+                                    pLogger.debug("*************************"
+                                                  "process_listen_port is : {} ,"
+                                                  "listen_ports is {!r},"
+                                                  "process_listen_port_processed: {} ====>".format(
+                                                      process_listen_port,
+                                                      set(listen_ports),
+                                                      process_listen_port_processed)
+                                                  )
 
                                     # exclude other process have the same listening port.
                                     if connection.laddr[1] in listen_ports:
@@ -287,9 +298,6 @@ def ps_collect():
                                         pLogger.debug("append listen port {} to process_listen_port_processed".format(
                                             l_port)
                                         )
-                                        if process_listen_port:
-                                            listen_ports.extend(list(process_listen_port))
-                                            listen_ports = list(set(listen_ports))
                                 elif connection.status == psutil.CONN_ESTABLISHED:
                                     laddr_connected = detect_socket(connection.raddr[0], connection.raddr[1])
                                     if laddr_connected == "fail":
@@ -324,7 +332,9 @@ def ps_collect():
                                                   name, pid, exe, cwd, cmdline, status, create_time, username,
                                                   server_uuid, local_ip=server_ip, flag=flag
                                                   )
-
+                            if process_listen_port:
+                                listen_ports.extend(list(process_listen_port))
+                                listen_ports = list(set(listen_ports))
                         else:
                             pLogger.debug("{} has no connections.".format(pid))
                     except psutil.NoSuchProcess as e:
