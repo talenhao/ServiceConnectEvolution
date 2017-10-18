@@ -86,7 +86,7 @@ def node_match(name, cwd=None, cmdline=None):
     :param cmdline:
     :return:
     """
-    drop_list = ['ssh', 'sshd', 'whois', 'sshd', 'salt-minion', 'salt-master']
+    drop_list = ['ssh', 'sshd', 'whois', 'salt-minion', 'salt-master', 'collect.py']
 #    from_drop_list = ['ssh', 'sshd', 'whois']
 #    target_drop_list = ['sshd']
 #    if flag == 'f':
@@ -98,7 +98,7 @@ def node_match(name, cwd=None, cmdline=None):
     if name in drop_list:
         return "drop"
     elif name == 'java':
-        node = match_sort('java', name + "=" + cwd)
+        node = match_sort('java', name + "[java]_" + cwd)
         return node
     elif name in name_list:
         node = name
@@ -220,7 +220,8 @@ def process_ralation(connections):
     now_process_num = 0
     for con in connections:
         now_process_num += 1
-        pLogger.info("Now process No. => {!r}".format(now_process_num))
+        if not now_process_num % 1000:
+            pLogger.info("Now process No. => {!r}".format(now_process_num))
         # pool.apply_async(connection_process, args=(con,), callback=fetch_list_process)
         from_to_node_tuple = connection_process(con)
         fetch_list_process(from_to_node_tuple)
