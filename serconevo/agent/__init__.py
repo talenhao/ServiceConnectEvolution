@@ -209,7 +209,7 @@ def listen_ports_collect(process, connections):
         # else:
         #     pLogger.debug(
         #         "{!r} is not LISTEN connection!".format(connection))
-    pLogger.debug('listen_ports_set : {}'.format(listen_ports_collect))
+    pLogger.debug('listen_ports_set : {}'.format(listen_ports_set))
     pLogger.debug("End, collect all listen ip port to a set.")
     return listen_ports_set
 
@@ -280,7 +280,7 @@ def ps_collect():
 
                                     # exclude other process have the same listening port.
                                     if connection.laddr[1] in listen_ports:
-                                        pLogger.debug("Duplicate listening port {!r}, drop.".format(connection))
+                                        pLogger.debug("Duplicate listening port, drop.")
                                         continue
                                     # exclude one process listening on ipv4 and ipv6
                                     elif connection.laddr[1] in process_listen_port_processed:
@@ -291,7 +291,9 @@ def ps_collect():
                                         continue
                                     else:
                                         flag = 0
+                                        r_ip_set = set()
                                         r_ip = None
+                                        r_ip_set.add(r_ip)
                                         r_port = None
                                         l_ip_set = server_ip
                                         process_listen_port_processed.add(l_port)
@@ -316,6 +318,14 @@ def ps_collect():
                                         )
                                         r_ip, r_port = raddr
                                         r_ip = convert_ipv6_ipv4(r_ip)
+                                        if r_ip in ['127.0.0.1', '1']:
+                                            pLogger.debug("connect to {}, lo will be replaced with server_ip".format(
+                                                raddr)
+                                            )
+                                            r_ip_set = server_ip
+                                        else:
+                                            r_ip_set = set()
+                                            r_ip_set.add(r_ip)
                                         l_ip_set = set()
                                         l_ip_set.add(l_ip)
                                 else:
@@ -323,15 +333,16 @@ def ps_collect():
                                         connection, connection.status))
                                     continue
                                 pLogger.debug("l_ip, l_port, r_ip, r_port is {!r}, {!r}, {!r}, {!r}, "
-                                              "l_ip_set is {!r}".format(
-                                                  l_ip, l_port, r_ip, r_port, l_ip_set)
+                                              "l_ip_set is {!r}, r_ip_set is {!r}".format(
+                                                  l_ip, l_port, r_ip, r_port, l_ip_set, r_ip_set)
                                               )
-                                if isinstance(l_ip_set, set):
+                                if isinstance(l_ip_set, set) and isinstance(r_ip_set, set):
                                     for l_ip_address in l_ip_set:
-                                        import2db(connection_table, l_ip_address, l_port, r_ip, r_port,
-                                                  name, pid, exe, cwd, cmdline, status, create_time, username,
-                                                  server_uuid, local_ip=server_ip, flag=flag
-                                                  )
+                                        for r_ip_address in r_ip_set:
+                                            import2db(connection_table, l_ip_address, l_port, r_ip, r_port,
+                                                      name, pid, exe, cwd, cmdline, status, create_time, username,
+                                                      server_uuid, local_ip=server_ip, flag=flag
+                                                      )
                             if process_listen_port:
                                 listen_ports.extend(list(process_listen_port))
                                 listen_ports = list(set(listen_ports))
