@@ -49,6 +49,7 @@ config_parser = db_con.python_config_parser
 connection_table = config_parser.get("TABLE", "connections")
 
 
+
 def get_server_uuid():
     """
     Get server uuid of which want to collected.

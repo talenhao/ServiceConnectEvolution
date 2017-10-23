@@ -15,6 +15,7 @@ import networkx.drawing as nxd
 # user module
 from serconevo.pickleprocess import pickle_to_file
 from serconevo.pickleprocess import pickle_from_file
+from serconevo.agent import config_parser
 from serconevo import netgraph_path
 from serconevo import graph_nodes_bin
 from serconevo import imgs_dir
@@ -26,18 +27,27 @@ from serconevo.log4p import log4p
 SCRIPT_NAME = os.path.basename(__file__)
 # log end <<
 pLogger = log4p.GetLogger(SCRIPT_NAME, logging.DEBUG).get_l()
+web_url = config_parser.get("SERVER", "weburl")
 
 
-def gv_graph(nxg, filename, node_name=None, fmt='pdf'):
-    # save a dot file to local disk
-    # nxd.nx_agraph.write_dot(nxg, imgs_dir + "/" + filename + '.dot')
+def gv_graph(nxg, filename=None, node_name=None, fmt='svg'):
+    """
+    Draw a graph with format 'fmt' use filename 'filename' for node 'node_name'.
+    Save a dot file to local disk
+    """
     # convert to pygraphviz agraph object
     pgv_graph = nxd.nx_agraph.to_agraph(nxg)
+    for node in nxg.node:
+        related_node = node.replace(' ', '_').replace('/', '_').replace('=', '')
+        related_node_url = web_url.format(related_node)
+        pgv_graph.add_node(node,
+                           URL=related_node_url)
+    url = web_url.format(filename)
     pgv_graph.graph_attr.update(rankdir="LR",  # 排布方向,左右
                                 bgcolor='beige'  # 画布背景着色
                                 )
     pgv_graph.node_attr.update(compound='true',
-                               fillcolor='yellowgreen',  # 填充颜色 
+                               fillcolor='yellowgreen',  # 填充颜色
                                style='filled',  # 填充
                                shape='folder',  # node图标形状
                                # shape='octagon',
@@ -56,18 +66,19 @@ def gv_graph(nxg, filename, node_name=None, fmt='pdf'):
                                imagepos='ml',
                                decorate='true',
                                fixedsize='false',  # 固定大小
-                               height='.1'
+                               height='.1',
                                )
     pgv_graph.edge_attr.update(splines='ortho',
                                # concentrate='true'
-                               color='blue', 
+                               color='blue',
                                penwidth='2.0',  # 线的粗细.
                                )
     if node_name:
         pgv_graph.add_node(node_name, fillcolor='orangered', shape='rounded', style='filled',
                            # gradientangle='90',
                            fontsize=10, labeljust='l',
-                           height='.1'
+                           height='.1',
+                           URL=url
                            )
     else:
         pLogger.warning("No center node.")
@@ -108,16 +119,18 @@ def ip_port_decide(string):
         return re_match
 
 
-def draw_node(graph, source_node, graph_nodes):
+def draw_node(graph, source_node, graph_node):
+    """
+    graph_node is dispaly name in image.
+    """
     g = graph
     out_format = ['svg']
-    pLogger.debug("source_node is {!r}".format(source_node))
     pLogger.debug("Begin to traversal {!r} deges use dfs".format(source_node))
     dfs_edges_result = nx_a_t.dfs_edges(g, source=source_node)
+
     pLogger.debug("Begin to reverse traversal {!r} deges use dfs".format(source_node))
     gr = g.reverse(copy=True)
     gr_dfs_edges_result = nx_a_t.dfs_edges(gr, source=source_node)
-    pLogger.info("traversal ok!")
 
     # gv_graph(gr, filename='gr')
     follows = list(dfs_edges_result)
@@ -133,10 +146,9 @@ def draw_node(graph, source_node, graph_nodes):
     pLogger.debug("g_new.graph is {!r}".format(g_new.graph))
 
     # draw a graph
-    file_name = source_node.replace(' ', '_').replace('/', '_').replace('=', '')
     for fmt in out_format:
         gv_graph(g_new,
-                 filename=file_name,
+                 filename=graph_node,
                  node_name=source_node,
                  fmt=fmt)
     pLogger.info("draw {!r} over.".format(source_node))
@@ -144,7 +156,9 @@ def draw_node(graph, source_node, graph_nodes):
 
 def traversal_nodes(graph):
     g = graph
+    # Nodes requiring drawing. It will pickle dump to a file.
     graph_nodes = set()
+
     pool = multiprocessing.Pool(processes=5)
     now_process_num = 0
     for source_node in g.node:
@@ -152,10 +166,11 @@ def traversal_nodes(graph):
         pLogger.info("Now traversal node No. => {!r}".format(now_process_num))
         decide_ip_port = ip_port_decide(source_node)
         pLogger.debug("decide_ip_port is {!r}".format(decide_ip_port))
+        # Check whether source_node is ip:port format. drop drawing this mode.
         if not decide_ip_port:
             source_node_replace = source_node.replace(' ', '_').replace('/', '_').replace('=', '')
             graph_nodes.add(source_node_replace)
-            pool.apply_async(draw_node, args=(g, source_node, graph_nodes))
+            pool.apply_async(draw_node, args=(g, source_node, source_node_replace))
         else:
             pLogger.debug("ip:port {!r} match, drop drawing.".format(source_node))
     # pool.map_async(draw_node, g.node)

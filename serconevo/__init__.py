@@ -7,6 +7,7 @@
 
 import os
 
+
 identify_line = "=*=" * 10
 netgraph_path = "/tmp/netgraph/fetch_list.bin"
 graph_nodes_bin = '/tmp/netgraph/graph_nodes.bin'

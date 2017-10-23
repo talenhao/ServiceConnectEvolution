@@ -7,7 +7,10 @@ username: sce
 db_name: sce_db
 
 [TABLE]
-listen_table: service_listens_table
-connection_table: service_connections_table
+connections: connections
 
 [SERVICE]
+
+
+[SERVER]
+weburl: http://192.168.1.xxx:1xxxx/static/netgraph/imgs/{}.svg
