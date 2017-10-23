@@ -12,7 +12,6 @@ import traceback
 import re
 # import pdb
 # import time
-import pickle
 
 # import user modles
 from serconevo.agent import script_head
@@ -23,8 +22,8 @@ from serconevo import identify_line
 from serconevo.agent import connection_table
 from serconevo.agent import db_con
 from serconevo.netgraph.drawgraph import netgraph_path
-from serconevo.netgraph.drawgraph import work_dir
 from serconevo.netgraph.drawgraph import load_draw
+from serconevo.netgraph.drawgraph import pickle_to_file
 
 # for log >>
 import logging
@@ -231,17 +230,6 @@ def process_ralation(connections):
     pLogger.info("All processes done!")
 
 
-def pickle_to_file(fetch_list):
-    pLogger.debug("{}\n\
-                  fetch_list is: \n\
-                  {!r}".format(identify_line, fetch_list))
-    if not os.path.exists(work_dir):
-        pLogger.debug("work_dir {} is not exists, create it.".format(work_dir))
-        os.makedirs(work_dir)
-    with open(netgraph_path, 'wb') as dump_file:
-        pickle.dump(fetch_list, dump_file, True)
-
-
 @spend_time
 @start_end_point(SCRIPT_NAME)
 @script_head
@@ -251,7 +239,7 @@ def main():
         process_ralation(connections)
         edges_list = list(set(fetch_list))
         pLogger.info("edges_list len {!r}".format(len(edges_list)))
-        pickle_to_file(edges_list)
+        pickle_to_file(edges_list, netgraph_path)
     except Exception:
         traceback.print_exc()
     else:

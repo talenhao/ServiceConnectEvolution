@@ -264,10 +264,19 @@ def ps_collect():
                                 )
                                 laddr, raddr = connection.laddr, connection.raddr
                                 pLogger.debug("laddr, raddr is {!r}, {!r}".format(laddr, raddr))
+                                # laddr
                                 # ip to ipv4
                                 l_ip, l_port = laddr
                                 l_ip = convert_ipv6_ipv4(l_ip)
-
+                                if l_ip in ['127.0.0.1', '1']:
+                                    pLogger.debug("connect to {}, lo will be replaced with server_ip".format(
+                                        raddr)
+                                    )
+                                    l_ip_set = server_ip
+                                else:
+                                    l_ip_set = set()
+                                    l_ip_set.add(l_ip)
+                                # raddr
                                 if connection.status == psutil.CONN_LISTEN:
                                     pLogger.debug("*************************"
                                                   "process_listen_port is : {} ,"
@@ -326,8 +335,6 @@ def ps_collect():
                                         else:
                                             r_ip_set = set()
                                             r_ip_set.add(r_ip)
-                                        l_ip_set = set()
-                                        l_ip_set.add(l_ip)
                                 else:
                                     pLogger.debug("connection {!r} with status {!r} don't wanted collect, drop!".format(
                                         connection, connection.status))
@@ -339,7 +346,7 @@ def ps_collect():
                                 if isinstance(l_ip_set, set) and isinstance(r_ip_set, set):
                                     for l_ip_address in l_ip_set:
                                         for r_ip_address in r_ip_set:
-                                            import2db(connection_table, l_ip_address, l_port, r_ip, r_port,
+                                            import2db(connection_table, l_ip_address, l_port, r_ip_address, r_port,
                                                       name, pid, exe, cwd, cmdline, status, create_time, username,
                                                       server_uuid, local_ip=server_ip, flag=flag
                                                       )
