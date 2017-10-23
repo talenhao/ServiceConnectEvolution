@@ -1,6 +1,7 @@
 # ServiceConnectEvolution
 =======================
 收集service进程,监听,socket交互,存储入数据库；并生成service交互图.称之为进化.
+交互图每个节点支持点击进入相应的子节点的交互
 结合rundeck,salt stack全自动更新,使用django展示
 
 usage:
