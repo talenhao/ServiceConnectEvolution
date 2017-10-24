@@ -22,6 +22,7 @@ import datetime
 
 # user module
 from serconevo.model import db_connect
+from serconevo.configprocess import python_config_parser
 
 # for log >>
 import logging
@@ -45,9 +46,7 @@ usage = '''
 identify_line = "=*=" * 10
 
 db_con = db_connect.DbInitConnect()
-config_parser = db_con.python_config_parser
-connection_table = config_parser.get("TABLE", "connections")
-
+connection_table = python_config_parser.get("TABLE", "connections")
 
 
 def get_server_uuid():
@@ -76,7 +75,6 @@ def script_head(func):
 # db commit
 def db_commit(func):
     def warper(*args, **kwargs):
-        # config_parser = db_connect.SCEConfigParser().config_parser()
         sql_cmd = func(*args, **kwargs)
         pLogger.debug("SQL_CMD is =====> {!r}  __________".format(sql_cmd))
         db_con.dictcursor.execute(sql_cmd)

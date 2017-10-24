@@ -9,13 +9,14 @@ import re
 import shutil
 import multiprocessing
 import networkx as nx
+from slugify import slugify
 import networkx.algorithms.traversal as nx_a_t
 import networkx.drawing as nxd
 
 # user module
 from serconevo.pickleprocess import pickle_to_file
 from serconevo.pickleprocess import pickle_from_file
-from serconevo.agent import config_parser
+from serconevo.configprocess import python_config_parser
 from serconevo import netgraph_path
 from serconevo import graph_nodes_bin
 from serconevo import imgs_dir
@@ -27,7 +28,8 @@ from serconevo.log4p import log4p
 SCRIPT_NAME = os.path.basename(__file__)
 # log end <<
 pLogger = log4p.GetLogger(SCRIPT_NAME, logging.DEBUG).get_l()
-web_url = config_parser.get("SERVER", "weburl")
+web_url = python_config_parser.get("SERVER", "weburl")
+web_url = web_url + '{0}.svg#{0}'
 
 
 def gv_graph(nxg, filename=None, node_name=None, fmt='svg'):
@@ -38,8 +40,8 @@ def gv_graph(nxg, filename=None, node_name=None, fmt='svg'):
     # convert to pygraphviz agraph object
     pgv_graph = nxd.nx_agraph.to_agraph(nxg)
     for node in nxg.node:
-        related_node = node.replace(' ', '_').replace('/', '_').replace('=', '')
-        related_node_url = web_url.format(related_node)
+        related_node = slugify(node)
+        related_node_url = web_url.format(related_node).split('#')[0]
         pgv_graph.add_node(node,
                            URL=related_node_url)
     url = web_url.format(filename)
@@ -54,31 +56,38 @@ def gv_graph(nxg, filename=None, node_name=None, fmt='svg'):
                                # orientation='rotate',
                                orientation='landscape',
                                ratio='compress',
-                               fontsize='10',  # 字体大小
+                               fontsize='9',  # 字体大小
                                fontname='DejaVu Sans Mono',  # 使用字体
                                remincross='true',
-                               concentrate='false',
+                               concentrate='false',  # 共用线
+                               constraint='true',  # If false, the edge is not used in ranking the nodes. 
                                overlap='false',
                                rank='source',  # 等级
-                               constraint='false',
                                clusterrank='none',
                                center='false',
                                imagepos='ml',
                                decorate='true',
                                fixedsize='false',  # 固定大小
                                height='.1',
+                               # dim='10',  # Set the number of dimensions used for the layout. The maximum value allowed is 10.
+                               # dimen='10',  # Set the number of dimensions used for rendering. The maximum value allowed is 10.
                                )
     pgv_graph.edge_attr.update(splines='ortho',
                                # concentrate='true'
                                color='blue',
                                penwidth='2.0',  # 线的粗细.
+                               headlabel='←',
+                               headURL=url,
+                               taillabel='→',
+                               tailURL=url
                                )
     if node_name:
         pgv_graph.add_node(node_name, fillcolor='orangered', shape='rounded', style='filled',
                            # gradientangle='90',
-                           fontsize=10, labeljust='l',
+                           peripheries=2,  # 外框圈数
+                           fontsize=9, labeljust='l',
                            height='.1',
-                           URL=url
+                           URL="#" + url.split('#')[1]
                            )
     else:
         pLogger.warning("No center node.")
@@ -138,7 +147,7 @@ def draw_node(graph, source_node, graph_node):
     pLogger.debug("follows type {}: {} \n leaders type {} :{}".format(
         type(follows), follows, type(leaders), leaders))
     pLogger.info("create new graph with {!r}".format(source_node))
-    gr_new = nx.DiGraph(name='gr')
+    gr_new = nx.DiGraph(name='Service Connections Evolution')
     gr_new.add_edges_from(leaders)
     pLogger.debug(gr_new.graph)
     g_new = gr_new.reverse(copy=True)
@@ -168,9 +177,9 @@ def traversal_nodes(graph):
         pLogger.debug("decide_ip_port is {!r}".format(decide_ip_port))
         # Check whether source_node is ip:port format. drop drawing this mode.
         if not decide_ip_port:
-            source_node_replace = source_node.replace(' ', '_').replace('/', '_').replace('=', '')
-            graph_nodes.add(source_node_replace)
-            pool.apply_async(draw_node, args=(g, source_node, source_node_replace))
+            source_node_slug = slugify(source_node)
+            graph_nodes.add(source_node_slug)
+            pool.apply_async(draw_node, args=(g, source_node, source_node_slug))
         else:
             pLogger.debug("ip:port {!r} match, drop drawing.".format(source_node))
     # pool.map_async(draw_node, g.node)

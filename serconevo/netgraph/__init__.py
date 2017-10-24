@@ -97,7 +97,7 @@ def node_match(name, cwd=None, cmdline=None):
     if name in drop_list:
         return "drop"
     elif name == 'java':
-        node = match_sort('java', name + "[java]_" + cwd)
+        node = match_sort('java', "[" + name + "]_" + cwd)
         return node
     elif name in name_list:
         node = name

@@ -22,7 +22,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='2017.10.23.78',
+    version='2017.10.24.84',
 
     description='collect every pid connections, use networkx graph',
     long_description=long_description,
@@ -72,7 +72,7 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['psutil>=5.3.0','PyMySQL>=0.7.11', 'networkx>=1.11', 'matplotlib>=2.0.2'],
+    install_requires=['psutil>=5.3.0','PyMySQL>=0.7.11', 'networkx>=1.11', 'matplotlib>=2.0.2', 'python-slugify>=1.2.4'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
